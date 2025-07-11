@@ -1,11 +1,5 @@
-use std::i64;
-
 use chess::{ChessMove, Color};
-
-pub const INDEX_BITS: usize = 25;
-const NON_INDEX_BITS: usize = 64 - INDEX_BITS;
-const MASK: usize = usize::MAX >> NON_INDEX_BITS;
-const SIZE: usize = 2usize.pow(INDEX_BITS as u32);
+use fnv::FnvHashMap;
 
 #[derive(Clone, Copy)]
 pub enum TTEntryFlag {
@@ -15,22 +9,43 @@ pub enum TTEntryFlag {
 }
 
 pub struct TranspositionTable {
-    pub entries: Vec<TTEntry>,
+    pub entries: FnvHashMap<u64, TTEntry>,
+    hits: u64,
+    misses: u64,
 }
 
 impl TranspositionTable {
     pub fn new() -> Self {
         TranspositionTable {
-            entries: vec![Default::default(); SIZE],
+            entries: FnvHashMap::default(),
+            hits: 0,
+            misses: 0,
         }
     }
 
-    pub fn get(&self, hash: u64) -> TTEntry {
-        self.entries[hash as usize & MASK]
+    pub fn stats(&self) -> (u64, u64, u64) {
+        (self.hits, self.misses, self.entries.len() as u64)
+    }
+
+    pub fn reset_stats(&mut self) {
+        self.hits = 0;
+        self.misses = 0;
+    }
+
+    pub fn get(&mut self, hash: u64) -> Option<&TTEntry> {
+        let res = self.entries.get(&hash);
+
+        if let Some(_) = res {
+            self.hits += 1;
+        } else {
+            self.misses += 1;
+        }
+
+        res
     }
 
     pub fn set(&mut self, hash: u64, entry: TTEntry) {
-        self.entries[hash as usize & MASK] = entry;
+        self.entries.insert(hash, entry);
     }
 }
 
@@ -46,8 +61,6 @@ pub struct TTEntry {
     color: Color,
     /// Position value
     value: i64,
-    /// Full position has to detect colisions
-    pub hash: u64,
 }
 
 impl TTEntry {
@@ -57,7 +70,6 @@ impl TTEntry {
         mv: Option<ChessMove>,
         color: Color,
         value: i64,
-        hash: u64,
     ) -> Self {
         TTEntry {
             flag,
@@ -65,7 +77,6 @@ impl TTEntry {
             mv,
             color,
             value,
-            hash,
         }
     }
 
@@ -87,7 +98,6 @@ impl Default for TTEntry {
             mv: None,
             color: Color::White,
             value: i64::MIN + 1,
-            hash: 0,
         }
     }
 }

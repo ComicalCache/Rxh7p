@@ -1,5 +1,3 @@
-use std::i64;
-
 use chess::{BitBoard, Board, ChessMove, EMPTY, MoveGen, Square};
 
 use crate::evaluator::Evaluator;

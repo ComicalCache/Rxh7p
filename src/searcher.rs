@@ -8,16 +8,33 @@ use crate::{
 
 pub struct Searcher {
     pub tt: TranspositionTable,
+    searched_positions: u64,
 }
 
 impl Searcher {
     pub fn new() -> Self {
         Searcher {
             tt: TranspositionTable::new(),
+            searched_positions: 0,
         }
     }
 
-    pub fn alpha_beta(
+    pub fn alpha_beta(&mut self, board: Board, a: i64, b: i64, depth: u16) -> i64 {
+        self.searched_positions = 0;
+        self.tt.reset_stats();
+
+        let res = self.__alpha_beta(board, a, b, depth, depth);
+
+        let (tt_hits, tt_misses, tt_entries) = self.tt.stats();
+        println!(
+            "Searched {} positions\nTT - {tt_entries} entries; {tt_hits} hits; {tt_misses} misses",
+            self.searched_positions
+        );
+
+        res
+    }
+
+    fn __alpha_beta(
         &mut self,
         board: Board,
         mut a: i64,
@@ -30,8 +47,9 @@ impl Searcher {
         let side = board.side_to_move();
 
         // if viable TT entry exists return eval
-        let tt_entry = self.tt.get(hash);
-        if tt_entry.hash == hash && tt_entry.depth >= depth {
+        if let Some(tt_entry) = self.tt.get(hash)
+            && tt_entry.depth >= depth
+        {
             let eval = tt_entry.eval(side);
             match tt_entry.flag {
                 TTEntryFlag::Exact => return eval,
@@ -46,6 +64,9 @@ impl Searcher {
             return self.quiescence(board, a, b);
         }
 
+        // prevent double counting of quiescence searches
+        self.searched_positions += 1;
+
         // checkmate or stalemate
         if board.status() != BoardStatus::Ongoing {
             return Evaluator::evaluate(board);
@@ -57,14 +78,14 @@ impl Searcher {
         for mv in Sorter::all(board) {
             // evaluate new position
             let new_eval =
-                -self.alpha_beta(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
+                -self.__alpha_beta(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
 
             if new_eval > max_eval {
                 max_eval = new_eval;
                 best_mv = Some(mv);
 
                 if depth == start_depth {
-                    println!("New best move {mv} with value {max_eval}");
+                    println!("[{max_eval}] {mv}");
                 }
             }
 
@@ -84,29 +105,30 @@ impl Searcher {
             (_, true) => TTEntryFlag::Beta,
             _ => TTEntryFlag::Exact,
         };
-        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval, hash);
+        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval);
         self.tt.set(hash, tt_entry);
 
         max_eval
     }
 
-    fn quiescence(&self, board: Board, mut a: i64, b: i64) -> i64 {
-        let mut best_eval = Evaluator::evaluate(board);
+    fn quiescence(&mut self, board: Board, mut a: i64, b: i64) -> i64 {
+        self.searched_positions += 1;
 
+        let mut max_eval = Evaluator::evaluate(board);
         // cut-off, move was too good, opponent would not allow it
-        if best_eval >= b {
-            return best_eval;
+        if max_eval >= b {
+            return max_eval;
         }
-        if best_eval > a {
-            a = best_eval;
+        if max_eval > a {
+            a = max_eval;
         }
 
         for capture in Sorter::quiescence(board) {
             // evaluate new position
             let new_eval = -self.quiescence(board.make_move_new(capture), -b, -a);
 
-            if new_eval > best_eval {
-                best_eval = new_eval;
+            if new_eval > max_eval {
+                max_eval = new_eval;
             }
 
             if new_eval > a {
@@ -119,6 +141,6 @@ impl Searcher {
             }
         }
 
-        best_eval
+        max_eval
     }
 }
