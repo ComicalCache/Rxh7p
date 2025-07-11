@@ -13,6 +13,7 @@ impl Sorter {
         moves.set_iterator_mask(Sorter::captures_mask(board));
         ret.extend(Sorter::__quiescence(board, &mut moves));
 
+        // TODO: more sorting
         moves.set_iterator_mask(!EMPTY);
         ret.extend(moves);
 
@@ -23,7 +24,7 @@ impl Sorter {
         let mut captures = MoveGen::new_legal(&board);
         captures.set_iterator_mask(Sorter::captures_mask(board));
 
-        // needed because otherwise dropped
+        // vec needed because otherwise dropped
         let mut ret = Vec::with_capacity(captures.len());
         ret.extend(Sorter::__quiescence(board, &mut captures));
 

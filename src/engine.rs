@@ -6,15 +6,17 @@ use crate::{
     transposition_table::{TTEntry, TTEntryFlag, TranspositionTable},
 };
 
-pub struct Searcher {
+pub struct Engine {
     pub tt: TranspositionTable,
+    evaluator: Evaluator,
     searched_positions: u64,
 }
 
-impl Searcher {
+impl Engine {
     pub fn new() -> Self {
-        Searcher {
+        Engine {
             tt: TranspositionTable::new(),
+            evaluator: Evaluator::new(),
             searched_positions: 0,
         }
     }
@@ -71,7 +73,7 @@ impl Searcher {
 
         // checkmate or stalemate
         if board.status() != BoardStatus::Ongoing {
-            return Evaluator::evaluate(board);
+            return self.evaluator.evaluate(board);
         }
 
         // search all sorted moves doing alpha-beta pruning
@@ -116,7 +118,7 @@ impl Searcher {
     fn quiescence(&mut self, board: Board, mut a: i64, b: i64) -> i64 {
         self.searched_positions += 1;
 
-        let mut max_eval = Evaluator::evaluate(board);
+        let mut max_eval = self.evaluator.evaluate(board);
         // cut-off, move was too good, opponent would not allow it
         if max_eval >= b {
             return max_eval;
