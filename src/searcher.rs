@@ -72,7 +72,7 @@ impl Searcher {
                 a = new_eval;
             }
 
-            // cut-off
+            // cut-off, move was too good, opponent would not allow it
             if new_eval >= b {
                 break;
             }
@@ -93,7 +93,7 @@ impl Searcher {
     fn quiescence(&self, board: Board, mut a: i64, b: i64) -> i64 {
         let mut best_eval = Evaluator::evaluate(board);
 
-        // cut-off
+        // cut-off, move was too good, opponent would not allow it
         if best_eval >= b {
             return best_eval;
         }
@@ -101,7 +101,7 @@ impl Searcher {
             a = best_eval;
         }
 
-        for capture in Sorter::captures(board) {
+        for capture in Sorter::quiescence(board) {
             // evaluate new position
             let new_eval = -self.quiescence(board.make_move_new(capture), -b, -a);
 
@@ -113,7 +113,7 @@ impl Searcher {
                 a = new_eval;
             }
 
-            // cut-off
+            // cut-off, move was too good, opponent would not allow it
             if new_eval >= b {
                 break;
             }

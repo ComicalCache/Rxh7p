@@ -5,20 +5,27 @@ const BISHOP_VALUE: i64 = 300;
 const KNIGHT_VALUE: i64 = 300;
 const ROOK_VALUE: i64 = 500;
 const QUEEN_VALUE: i64 = 900;
+const KING_VALUE: i64 = i64::MAX;
 
 pub struct Evaluator {}
 
 impl Evaluator {
-    #[inline(always)]
-    fn piece_count(board: Board, piece: Piece, color: Color) -> i64 {
-        (board.pieces(piece) & board.color_combined(color)).popcnt() as i64
+    pub fn piece_value(piece: Piece) -> i64 {
+        match piece {
+            Piece::Pawn => PAWN_VALUE,
+            Piece::Knight => KNIGHT_VALUE,
+            Piece::Bishop => BISHOP_VALUE,
+            Piece::Rook => ROOK_VALUE,
+            Piece::Queen => QUEEN_VALUE,
+            Piece::King => KING_VALUE,
+        }
     }
 
     pub fn evaluate(board: Board) -> i64 {
         // stalemate is neutral, being in checkmate is VERY bad
         match board.status() {
             chess::BoardStatus::Stalemate => return 0,
-            chess::BoardStatus::Checkmate => return i64::MIN + 1,
+            chess::BoardStatus::Checkmate => return -KING_VALUE,
             _ => {}
         }
 
@@ -52,5 +59,10 @@ impl Evaluator {
 
         // difference between own and opponent piece value
         own_value - opponent_value
+    }
+
+    #[inline(always)]
+    fn piece_count(board: Board, piece: Piece, color: Color) -> i64 {
+        (board.pieces(piece) & board.color_combined(color)).popcnt() as i64
     }
 }

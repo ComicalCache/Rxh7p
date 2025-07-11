@@ -13,3 +13,12 @@
 
 - https://www.chessprogramming.org/Quiescence_Search
 - https://www.chessprogramming.org/Horizon_Effect
+
+## Move Ordering
+
+- https://www.chessprogramming.org/MVV-LVA
+- https://www.chessprogramming.org/Static_Exchange_Evaluation
+
+## Spare Time Topics
+
+- https://www.chessprogramming.org/Delta_Pruning

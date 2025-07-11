@@ -9,6 +9,8 @@ mod searcher;
 mod sorter;
 mod transposition_table;
 
+const DEPTH: u16 = 4;
+
 fn main() {
     let mut searcher = Searcher::new();
 
@@ -18,15 +20,21 @@ fn main() {
             .read_line(&mut fen)
             .expect("Unable to read Stdin");
 
-        let board = Board::from_str(&fen).unwrap();
+        let mut board = Board::from_str(&fen).unwrap();
 
-        let _ = searcher.alpha_beta(board, i64::MIN + 1, i64::MAX, 4, 4);
-        let entry = searcher.tt.get(board.get_hash());
+        let _ = searcher.alpha_beta(board, i64::MIN + 1, i64::MAX, DEPTH, DEPTH);
 
-        println!(
-            "{}: {}",
-            entry.eval(board.side_to_move()),
-            entry.mv.unwrap()
-        );
+        let mut sequence = Vec::new();
+        for _ in 0..DEPTH {
+            let entry = searcher.tt.get(board.get_hash());
+            if let Some(mv) = entry.mv {
+                sequence.push(format!("{}: {mv}", entry.eval(board.side_to_move())));
+                board = board.make_move_new(mv);
+            } else {
+                break;
+            }
+        }
+
+        println!("{}", sequence.join(" -> "));
     }
 }
