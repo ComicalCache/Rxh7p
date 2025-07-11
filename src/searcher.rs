@@ -1,42 +1,124 @@
-use chess::{Board, ChessMove};
+use chess::{Board, BoardStatus};
 
-use crate::{evaluator::Evaluator, sorter::Sorter};
+use crate::{
+    evaluator::Evaluator,
+    sorter::Sorter,
+    transposition_table::{TTEntry, TTEntryFlag, TranspositionTable},
+};
 
-pub struct Searcher {}
+pub struct Searcher {
+    pub tt: TranspositionTable,
+}
 
 impl Searcher {
+    pub fn new() -> Self {
+        Searcher {
+            tt: TranspositionTable::new(),
+        }
+    }
+
     pub fn alpha_beta(
+        &mut self,
         board: Board,
-        mut alpha: i64,
-        beta: i64,
-        depth: usize,
-    ) -> (i64, Option<ChessMove>) {
-        // https://www.chessprogramming.org/Alpha-Beta#Negamax_Framework
-        if depth == 0 {
-            return Evaluator::quiescence(board, alpha, beta);
+        mut a: i64,
+        b: i64,
+        depth: u16,
+        start_depth: u16,
+    ) -> i64 {
+        let prev_a = a;
+        let hash = board.get_hash();
+        let side = board.side_to_move();
+
+        // if viable TT entry exists return eval
+        let tt_entry = self.tt.get(hash);
+        if tt_entry.hash == hash && tt_entry.depth >= depth {
+            let eval = tt_entry.eval(side);
+            match tt_entry.flag {
+                TTEntryFlag::Exact => return eval,
+                TTEntryFlag::Beta if eval >= b => return eval,
+                TTEntryFlag::Alpha if eval <= a => return eval,
+                _ => {}
+            }
         }
 
-        let mut best_eval = i64::MIN + 1;
-        let mut best_move = None;
+        // quiescence search to avoid event horizon
+        if depth == 0 {
+            return self.quiescence(board, a, b);
+        }
 
-        for m in Sorter::all(board) {
-            let (mut new_score, _) =
-                Searcher::alpha_beta(board.make_move_new(m), -beta, -alpha, depth - 1);
-            new_score = -new_score;
+        // checkmate or stalemate
+        if board.status() != BoardStatus::Ongoing {
+            return Evaluator::evaluate(board);
+        }
 
-            if new_score > best_eval {
-                best_eval = new_score;
-                best_move = Some(m);
+        // search all sorted moves doing alpha-beta pruning
+        let mut max_eval = i64::MIN + 1;
+        let mut best_mv = None;
+        for mv in Sorter::all(board) {
+            // evaluate new position
+            let new_eval =
+                -self.alpha_beta(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
 
-                if new_score > alpha {
-                    alpha = new_score;
+            if new_eval > max_eval {
+                max_eval = new_eval;
+                best_mv = Some(mv);
+
+                if depth == start_depth {
+                    println!("New best move {mv} with value {max_eval}");
                 }
             }
-            if new_score >= beta {
-                return (best_eval, Some(m));
+
+            if new_eval > a {
+                a = new_eval;
+            }
+
+            // cut-off
+            if new_eval >= b {
+                break;
             }
         }
 
-        (best_eval, best_move)
+        // save TT entry
+        let flag = match (max_eval <= prev_a, max_eval >= b) {
+            (true, _) => TTEntryFlag::Alpha,
+            (_, true) => TTEntryFlag::Beta,
+            _ => TTEntryFlag::Exact,
+        };
+        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval, hash);
+        self.tt.set(hash, tt_entry);
+
+        max_eval
+    }
+
+    fn quiescence(&self, board: Board, mut a: i64, b: i64) -> i64 {
+        let mut best_eval = Evaluator::evaluate(board);
+
+        // cut-off
+        if best_eval >= b {
+            return best_eval;
+        }
+        if best_eval > a {
+            a = best_eval;
+        }
+
+        for capture in Sorter::captures(board) {
+            // evaluate new position
+            let new_eval = -self.quiescence(board.make_move_new(capture), -b, -a);
+
+            if new_eval > best_eval {
+                best_eval = new_eval;
+            }
+
+            if new_eval > a {
+                a = new_eval;
+            }
+
+            // cut-off
+            if new_eval >= b {
+                break;
+            }
+        }
+
+        best_eval
     }
 }

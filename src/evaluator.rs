@@ -1,6 +1,4 @@
-use chess::{Board, ChessMove, Color, Piece};
-
-use crate::sorter::Sorter;
+use chess::{Board, Color, Piece};
 
 const PAWN_VALUE: i64 = 100;
 const BISHOP_VALUE: i64 = 300;
@@ -17,6 +15,13 @@ impl Evaluator {
     }
 
     pub fn evaluate(board: Board) -> i64 {
+        // stalemate is neutral, being in checkmate is VERY bad
+        match board.status() {
+            chess::BoardStatus::Stalemate => return 0,
+            chess::BoardStatus::Checkmate => return i64::MIN + 1,
+            _ => {}
+        }
+
         // fetch count of opponents pieces
         let opponent_pawns = Evaluator::piece_count(board, Piece::Pawn, !board.side_to_move());
         let opponent_bishops = Evaluator::piece_count(board, Piece::Bishop, !board.side_to_move());
@@ -47,37 +52,5 @@ impl Evaluator {
 
         // difference between own and opponent piece value
         own_value - opponent_value
-    }
-
-    pub fn quiescence(board: Board, mut alpha: i64, beta: i64) -> (i64, Option<ChessMove>) {
-        // https://www.chessprogramming.org/Quiescence_Search
-        let mut best_score = Evaluator::evaluate(board);
-        let mut best_move = None;
-
-        if best_score >= beta {
-            return (best_score, None);
-        }
-        if best_score > alpha {
-            alpha = best_score;
-        }
-
-        for capture in Sorter::captures(board) {
-            let (mut new_score, _) =
-                Evaluator::quiescence(board.make_move_new(capture), -beta, -alpha);
-            new_score = -new_score;
-
-            if new_score >= beta {
-                return (new_score, Some(capture));
-            }
-            if new_score > best_score {
-                best_score = new_score;
-                best_move = Some(capture);
-            }
-            if new_score > alpha {
-                alpha = new_score;
-            }
-        }
-
-        (best_score, best_move)
     }
 }

@@ -4,12 +4,14 @@ use chess::Board;
 
 use crate::searcher::Searcher;
 
-mod engine;
 mod evaluator;
 mod searcher;
 mod sorter;
+mod transposition_table;
 
 fn main() {
+    let mut searcher = Searcher::new();
+
     loop {
         let mut fen: String = String::new();
         io::stdin()
@@ -18,15 +20,13 @@ fn main() {
 
         let board = Board::from_str(&fen).unwrap();
 
-        let (score, m) = Searcher::alpha_beta(board, i64::MIN + 1, i64::MAX, 4);
+        let _ = searcher.alpha_beta(board, i64::MIN + 1, i64::MAX, 4, 4);
+        let entry = searcher.tt.get(board.get_hash());
 
         println!(
-            "{score}: {}",
-            if m.is_some() {
-                m.unwrap().to_string()
-            } else {
-                "None".to_string()
-            }
+            "{}: {}",
+            entry.eval(board.side_to_move()),
+            entry.mv.unwrap()
         );
     }
 }
