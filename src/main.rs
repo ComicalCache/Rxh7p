@@ -9,7 +9,7 @@ mod searcher;
 mod sorter;
 mod transposition_table;
 
-const DEPTH: u16 = 4;
+const DEPTH: u16 = 7;
 
 fn main() {
     let mut searcher = Searcher::new();
@@ -21,14 +21,17 @@ fn main() {
             .expect("Unable to read Stdin");
 
         let mut board = Board::from_str(&fen).unwrap();
+        let side = board.side_to_move();
 
-        let _ = searcher.alpha_beta(board, i64::MIN + 1, i64::MAX, DEPTH);
+        searcher.alpha_beta(board, i64::MIN + 1, i64::MAX, DEPTH);
 
         let mut sequence = Vec::new();
         for _ in 0..DEPTH {
             if let Some(entry) = searcher.tt.get(board.get_hash()) {
                 if let Some(mv) = entry.mv {
-                    sequence.push(format!("[{}] {mv}", entry.eval(board.side_to_move())));
+                    // always print from view of who's current turn it is
+                    // avoids eval to jump from plus to minus in pv
+                    sequence.push(format!("[{}] {mv}", entry.eval(side)));
                     board = board.make_move_new(mv);
                 } else {
                     break;

@@ -1,11 +1,12 @@
 use chess::{Board, Color, Piece};
 
 const PAWN_VALUE: i64 = 100;
-const BISHOP_VALUE: i64 = 300;
+const BISHOP_VALUE: i64 = 350;
 const KNIGHT_VALUE: i64 = 300;
 const ROOK_VALUE: i64 = 500;
 const QUEEN_VALUE: i64 = 900;
-const KING_VALUE: i64 = i64::MAX;
+// minues one, otherwise in mate situations it can't differentiate between mate and no move found
+const KING_VALUE: i64 = i64::MAX - 1;
 
 pub struct Evaluator {}
 

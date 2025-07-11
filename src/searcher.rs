@@ -20,14 +20,16 @@ impl Searcher {
     }
 
     pub fn alpha_beta(&mut self, board: Board, a: i64, b: i64, depth: u16) -> i64 {
+        // reset all statistics
         self.searched_positions = 0;
         self.tt.reset_stats();
 
         let res = self.__alpha_beta(board, a, b, depth, depth);
 
+        // show search statistics
         let (tt_hits, tt_misses, tt_entries) = self.tt.stats();
         println!(
-            "Searched {} positions\nTT - {tt_entries} entries; {tt_hits} hits; {tt_misses} misses",
+            "Searched {} positions\nTT size {tt_entries}; {tt_hits} hits/{tt_misses} misses",
             self.searched_positions
         );
 
