@@ -22,13 +22,13 @@ impl Engine {
     }
 
     pub fn alpha_beta(&mut self, board: Board, a: i64, b: i64, depth: u16) -> i64 {
-        // reset all statistics
+        // Reset all statistics.
         self.searched_positions = 0;
         self.tt.reset_stats();
 
         let res = self.__alpha_beta(board, a, b, depth, depth);
 
-        // show search statistics
+        // Show search statistics.
         let (tt_hits, tt_misses, tt_entries) = self.tt.stats();
         println!(
             "Searched {} positions\nTT size {tt_entries}; {tt_hits} hits/{tt_misses} misses",
@@ -50,12 +50,12 @@ impl Engine {
         let hash = board.get_hash();
         let side = board.side_to_move();
 
-        // if viable TT entry exists return eval
-        if let Some(tt_entry) = self.tt.get(hash)
-            && tt_entry.depth >= depth
+        // If viable entry exists return evaluation.
+        if let Some(entry) = self.tt.get(hash)
+            && entry.depth >= depth
         {
-            let eval = tt_entry.eval(side);
-            match tt_entry.flag {
+            let eval = entry.eval(side);
+            match entry.flag {
                 TTEntryFlag::Exact => return eval,
                 TTEntryFlag::Beta if eval >= b => return eval,
                 TTEntryFlag::Alpha if eval <= a => return eval,
@@ -63,24 +63,24 @@ impl Engine {
             }
         }
 
-        // quiescence search to avoid event horizon
+        // Quiescence search to avoid event horizon.
         if depth == 0 {
             return self.quiescence(board, a, b);
         }
 
-        // prevent double counting of quiescence searches
+        // Prevent double counting of quiescence searches by only counting now.
         self.searched_positions += 1;
 
-        // checkmate or stalemate
+        // Checkmate or stalemate.
         if board.status() != BoardStatus::Ongoing {
             return self.evaluator.evaluate(board);
         }
 
-        // search all sorted moves doing alpha-beta pruning
+        // Search all sorted moves doing alpha-beta pruning.
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
         for mv in Sorter::all(board) {
-            // evaluate new position
+            // Evaluate new position.
             let new_eval =
                 -self.__alpha_beta(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
 
@@ -97,20 +97,20 @@ impl Engine {
                 a = new_eval;
             }
 
-            // cut-off, move was too good, opponent would not allow it
+            // Cut-off, move was too good, opponent would not allow it.
             if new_eval >= b {
                 break;
             }
         }
 
-        // save TT entry
+        // Store entry.
         let flag = match (max_eval <= prev_a, max_eval >= b) {
             (true, _) => TTEntryFlag::Alpha,
             (_, true) => TTEntryFlag::Beta,
             _ => TTEntryFlag::Exact,
         };
-        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval);
-        self.tt.set(hash, tt_entry);
+        self.tt
+            .set(hash, TTEntry::new(flag, depth, best_mv, side, max_eval));
 
         max_eval
     }
@@ -119,7 +119,7 @@ impl Engine {
         self.searched_positions += 1;
 
         let mut max_eval = self.evaluator.evaluate(board);
-        // cut-off, move was too good, opponent would not allow it
+        // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= b {
             return max_eval;
         }
@@ -128,7 +128,7 @@ impl Engine {
         }
 
         for capture in Sorter::quiescence(board) {
-            // evaluate new position
+            // Evaluate new position.
             let new_eval = -self.quiescence(board.make_move_new(capture), -b, -a);
 
             if new_eval > max_eval {
@@ -139,7 +139,7 @@ impl Engine {
                 a = new_eval;
             }
 
-            // cut-off, move was too good, opponent would not allow it
+            // Cut-off, move was too good, opponent would not allow it.
             if new_eval >= b {
                 break;
             }

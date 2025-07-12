@@ -9,7 +9,7 @@ impl Sorter {
         let mut moves = MoveGen::new_legal(&board);
         let mut ret = Vec::with_capacity(moves.len());
 
-        // prioratize capturing
+        // Search captures first
         moves.set_iterator_mask(Sorter::captures_mask(board));
         ret.extend(Sorter::__quiescence(board, &mut moves));
 
@@ -24,7 +24,7 @@ impl Sorter {
         let mut captures = MoveGen::new_legal(&board);
         captures.set_iterator_mask(Sorter::captures_mask(board));
 
-        // vec needed because otherwise dropped
+        // Vec needed because otherwise dropped.
         let mut ret = Vec::with_capacity(captures.len());
         ret.extend(Sorter::__quiescence(board, &mut captures));
 
@@ -35,7 +35,7 @@ impl Sorter {
         let mut sorted = Vec::with_capacity(captures.len());
         sorted.extend(captures);
 
-        // sorts ascending, must thus be reversed
+        // Sorts ascending, must thus be reversed.
         sorted.sort_by_cached_key(|capture| Sorter::static_exchange_eval_capture(board, *capture));
         sorted.reverse();
 
@@ -44,8 +44,8 @@ impl Sorter {
 
     fn captures_mask(board: Board) -> BitBoard {
         let captures = board.color_combined(!board.side_to_move());
-        // en passant moves are not included by the above mask since they don't land on the same
-        // square of which they take
+        // En passant moves are not included by the above mask since they don't land on the same
+        // square of which they take.
         let en_passant = match board.en_passant() {
             Some(square) => BitBoard::from_square(square),
             None => EMPTY,
@@ -81,7 +81,7 @@ impl Sorter {
 
     fn smallest_attack(board: Board, square: Square) -> Option<ChessMove> {
         let mut captures = MoveGen::new_legal(&board);
-        // excludes en-passant but doesn't matter for now
+        // FIXME: excludes en-passant but shouldn't matter too much.
         captures.set_iterator_mask(Sorter::captures_mask(board) & BitBoard::from_square(square));
 
         let mut smallest_attack = None;

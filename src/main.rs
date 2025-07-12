@@ -29,8 +29,8 @@ fn main() {
         for _ in 0..DEPTH {
             if let Some(entry) = engine.tt.get(board.get_hash()) {
                 if let Some(mv) = entry.mv {
-                    // always print from view of who's current turn it is
-                    // avoids eval to jump from plus to minus in pv
+                    // Always print from view of who's current turn it is to avoid the evaluation
+                    // jumping from plus to minus in pv-search.
                     sequence.push(format!("[{}] {mv}", entry.eval(side)));
                     board = board.make_move_new(mv);
                 } else {

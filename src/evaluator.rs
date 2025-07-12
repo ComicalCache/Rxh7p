@@ -6,7 +6,7 @@ const BISHOP_VALUE: i64 = 350;
 const KNIGHT_VALUE: i64 = 300;
 const ROOK_VALUE: i64 = 500;
 const QUEEN_VALUE: i64 = 1000;
-// minues one, otherwise in mate situations it can't differentiate between mate and no move found
+// Minues one, otherwise in mate situations it can't differentiate between mate and no move found.
 const KING_VALUE: i64 = i64::MAX - 1;
 
 pub struct Evaluator {
@@ -34,7 +34,7 @@ impl Evaluator {
     }
 
     pub fn evaluate(&mut self, board: Board) -> i64 {
-        // stalemate is neutral, being in checkmate is VERY bad
+        // Stalemate is neutral, being in checkmate is VERY bad.
         match board.status() {
             chess::BoardStatus::Stalemate => return 0,
             chess::BoardStatus::Checkmate => return -KING_VALUE,
@@ -63,9 +63,13 @@ impl Evaluator {
             own_value += piece_count * Evaluator::piece_value(piece);
         }
 
-        // difference between own and opponent piece value
-        // clamped to the interval [-QUEEN_VALUE, QUEEN_VALUE]
-        (own_value / total_own_pieces) - (opponent_value / total_opponent_pieces)
+        // Difference between own and opponent piece value. Avoid dividing by zero.
+        match (total_own_pieces, total_opponent_pieces) {
+            (0, 0) => 0,
+            (0, _) => -(opponent_value / total_opponent_pieces),
+            (_, 0) => own_value / total_own_pieces,
+            (_, _) => (own_value / total_own_pieces) - (opponent_value / total_opponent_pieces),
+        }
     }
 
     fn doubled_pawns(&mut self, board: Board) -> i64 {
@@ -75,7 +79,7 @@ impl Evaluator {
         let opponent_pawns =
             board.color_combined(!board.side_to_move()) & board.pieces(Piece::Pawn);
 
-        // check if position is known and use cached evaluation
+        // Check if position is known and use cached evaluation.
         let hash = own_pawns & opponent_pawns;
         if let Some(entry) = self.doubled_pawns.get(&hash.0)
             && !entry.collision(own_pawns, opponent_pawns, board.side_to_move())
@@ -90,22 +94,25 @@ impl Evaluator {
 
             let mut eval = 0;
             if own_pawn_file.popcnt() > 1 {
-                // reduce half of a pawn value
+                // Reduce half of a pawn value for doubled pawns.
                 eval = -(PAWN_VALUE / 2);
 
-                // if opponent has pawn on same file blocking our doubled pawns, reduct whole pawn
+                // If opponent has pawn on same file blocking our doubled pawns, reduct whole pawn
+                // since multiple pawns are blocked.
                 if opponent_pawn_file.popcnt() != 0 {
                     eval *= 2;
                 }
 
-                // if double pawns on king side half the penalty
-                // defending the king with double pawns should be punished less
+                // Ff double pawns on king side half the penalty,defending the king with doubled
+                // pawns should be punished less.
                 if Evaluator::king_side(board, file) {
                     eval /= 2;
                 }
             }
 
-            // flat reward fourth of a pawn for each doubled enemy pawn
+            // Flat reward fourth of a pawn for each doubled enemy pawn.
+            // Idea behind asymmetric evaluation is that it incentivises against having doubled
+            // pawns but doesn't incentivice causing doubled pawns too much.
             if opponent_pawn_file.popcnt() > 1 {
                 eval += PAWN_VALUE / 4;
             }
@@ -113,7 +120,7 @@ impl Evaluator {
             total_eval += eval;
         }
 
-        // store evaluation
+        // Store evaluation.
         self.doubled_pawns.insert(
             hash.0,
             PawnTableEntry::new(own_pawns, opponent_pawns, board.side_to_move(), total_eval),
@@ -129,7 +136,7 @@ impl Evaluator {
         let opponent_pawns =
             board.color_combined(!board.side_to_move()) & board.pieces(Piece::Pawn);
 
-        // check if position is known and use cached evaluation
+        // Check if position is known and use cached evaluation.
         let hash = own_pawns & opponent_pawns;
         if let Some(entry) = self.isolated_pawns.get(&hash.0)
             && !entry.collision(own_pawns, opponent_pawns, board.side_to_move())
@@ -139,9 +146,9 @@ impl Evaluator {
 
         let mut total_eval = 0;
 
-        // punish/reward isolated pawns in the middle more
+        // Punish/reward isolated pawns in the middle more.
         let factors: [f64; 6] = [1., 1.25, 1.5, 1.5, 1.25, 1.];
-        // ignore isolated A and H file pawns
+        // Ignore isolated A and H file pawns.
         for (file, factor) in [B, C, D, E, F, G].into_iter().zip(factors) {
             let own_pawn_file = own_pawns & chess::get_file(file);
             let opponent_pawn_file = opponent_pawns & chess::get_file(file);
@@ -153,12 +160,14 @@ impl Evaluator {
 
             let mut eval = 0;
 
-            // punish isolated pawns by half a pawn
+            // Punish isolated pawns by half a pawn times a factor.
             if own_pawn_file.popcnt() != 0 && own_left.popcnt() == 0 && own_right.popcnt() == 0 {
                 eval = -(((PAWN_VALUE / 2) as f64 * factor).round() as i64);
             }
 
-            // reward isolated opponent pawns by fourth a pawn
+            // Reward isolated opponent pawns by fourth a pawn times a factor.
+            // Idea behind asymmetric evaluation is that it incentivises against having isolated
+            // pawns but doesn't incentivice causing isolated pawns too much.
             if opponent_pawn_file.popcnt() != 0
                 && opponent_left.popcnt() == 0
                 && opponent_right.popcnt() == 0
@@ -169,7 +178,7 @@ impl Evaluator {
             total_eval += eval;
         }
 
-        // store evaluation
+        // Store evaluation.
         self.isolated_pawns.insert(
             hash.0,
             PawnTableEntry::new(own_pawns, opponent_pawns, board.side_to_move(), total_eval),

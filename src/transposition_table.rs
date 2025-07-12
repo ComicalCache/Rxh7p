@@ -81,7 +81,7 @@ impl TTEntry {
     }
 
     pub fn eval(&self, color: Color) -> i64 {
-        // adjust relative value to color that requests
+        // Adjust the relative value to tbe color that requests it.
         if self.color == color {
             self.value
         } else {
