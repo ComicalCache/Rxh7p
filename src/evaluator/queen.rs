@@ -1,4 +1,4 @@
-use chess::{EMPTY, Piece};
+use chess::Piece;
 
 use crate::evaluator::{Evaluator, pawn::PAWN_VALUE};
 
@@ -35,28 +35,6 @@ impl Evaluator {
             let moves = ((queen_rays & unblocked) ^ queen_rays).popcnt() as usize;
 
             total_eval += eval[moves];
-        }
-
-        total_eval
-    }
-
-    pub(super) fn __queen_undefended(&self) -> i64 {
-        let mut total_eval = 0;
-
-        let queens = self.board.color_combined(self.color) & self.board.pieces(Piece::Queen);
-
-        let knight_attack_rays = Evaluator::knight_attack_rays(&self.board, self.color);
-        let bishop_rays = Evaluator::bishop_rays(&self.board, self.color);
-        let rook_rays = Evaluator::rook_rays(&self.board, self.color);
-
-        let unblocked = !(self.board.combined() ^ queens);
-
-        // Penalty if queens are not protected by bishops, knights and/or rooks.
-        if queens & (knight_attack_rays & unblocked) == EMPTY
-            && queens & (bishop_rays & unblocked) == EMPTY
-            && queens & (rook_rays & unblocked) == EMPTY
-        {
-            total_eval = -PAWN_VALUE / 4;
         }
 
         total_eval

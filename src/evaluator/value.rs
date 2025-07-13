@@ -52,15 +52,4 @@ impl Evaluator {
 
         total_mobility
     }
-
-    pub(super) fn undefended(&self) -> i64 {
-        let mut total_undefended = 0;
-
-        total_undefended += self.__knight_undefended();
-        total_undefended += self.__bishop_undefended();
-        total_undefended += self.__rook_undefended();
-        total_undefended += self.__queen_undefended();
-
-        total_undefended
-    }
 }

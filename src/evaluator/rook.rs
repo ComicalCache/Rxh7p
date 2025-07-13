@@ -1,4 +1,4 @@
-use chess::{BitBoard, CastleRights, Color, EMPTY, File, Piece, Rank, Square};
+use chess::{CastleRights, Color, EMPTY, File, Piece, Rank, Square};
 
 use crate::evaluator::{Evaluator, pawn::PAWN_VALUE};
 
@@ -67,29 +67,6 @@ impl Evaluator {
             let rook_rays = chess::get_rook_rays(rook);
             let moves = ((rook_rays & unblocked) ^ rook_rays).popcnt() as usize;
             total_eval += eval[moves];
-        }
-
-        total_eval
-    }
-
-    pub(super) fn __rook_undefended(&self) -> i64 {
-        let mut total_eval = 0;
-
-        let rooks = self.board.color_combined(self.color) & self.board.pieces(Piece::Rook);
-
-        let knight_attack_rays = Evaluator::knight_attack_rays(&self.board, self.color);
-        let bishop_rays = Evaluator::bishop_rays(&self.board, self.color);
-        let unblocked = !(self.board.combined() ^ rooks);
-
-        for rook in rooks {
-            let rook = BitBoard::from_square(rook);
-
-            // Penalty if rook is not protected by bishops and/or knights.
-            if rook & (knight_attack_rays & unblocked) == EMPTY
-                && rook & (bishop_rays & unblocked) == EMPTY
-            {
-                total_eval = -PAWN_VALUE / 4;
-            }
         }
 
         total_eval

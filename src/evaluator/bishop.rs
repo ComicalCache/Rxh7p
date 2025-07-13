@@ -1,4 +1,4 @@
-use chess::{EMPTY, Piece};
+use chess::Piece;
 
 use crate::evaluator::{Evaluator, pawn::PAWN_VALUE};
 
@@ -31,31 +31,6 @@ impl Evaluator {
             let bishop_rays = chess::get_bishop_rays(bishop);
             let moves = ((bishop_rays & unblocked) ^ bishop_rays).popcnt() as usize;
             total_eval += eval[moves];
-        }
-
-        total_eval
-    }
-
-    pub(super) fn __bishop_undefended(&self) -> i64 {
-        let mut total_eval = 0;
-
-        let bishops = self.board.color_combined(self.color) & self.board.pieces(Piece::Bishop);
-
-        let knight_attack_rays = Evaluator::knight_attack_rays(&self.board, self.color);
-        let rook_rays = Evaluator::rook_rays(&self.board, self.color);
-        let pawn_attack_rays = Evaluator::pawn_attack_rays(&self.board, self.color);
-        let unblocked = !(self.board.combined() ^ bishops);
-
-        // Penalty if bishops are not protected by knights and/or rooks.
-        if bishops & (knight_attack_rays & unblocked) == EMPTY
-            && bishops & (rook_rays & unblocked) == EMPTY
-        {
-            total_eval = -PAWN_VALUE / 4;
-        }
-
-        // Reward if bishops are protected by pawns.
-        if bishops & (pawn_attack_rays & unblocked) != EMPTY {
-            total_eval = PAWN_VALUE / 4;
         }
 
         total_eval

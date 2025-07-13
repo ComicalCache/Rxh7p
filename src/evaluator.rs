@@ -6,7 +6,7 @@ mod queen;
 mod rook;
 mod value;
 
-use chess::{BitBoard, Board, Color, EMPTY, File, Piece};
+use chess::{BitBoard, Board, Color, File, Piece};
 use fnv::FnvHashMap;
 
 use crate::evaluator::king::KING_VALUE;
@@ -50,7 +50,6 @@ impl Evaluator {
 
         self.value()
             + self.mobility()
-            + self.undefended()
             + self.stacked_pawns()
             + self.isolated_pawns()
             + self.blocked_center_pawns()
@@ -63,50 +62,6 @@ impl Evaluator {
 impl Evaluator {
     fn piece_count(board: &Board, piece: Piece, color: Color) -> i64 {
         (board.color_combined(color) & board.pieces(piece)).popcnt() as i64
-    }
-
-    fn bishop_rays(board: &Board, color: Color) -> BitBoard {
-        let mut rays = EMPTY;
-
-        let bishops = board.color_combined(color) & board.pieces(Piece::Bishop);
-        for bishop in bishops {
-            rays |= chess::get_bishop_rays(bishop);
-        }
-
-        rays
-    }
-
-    fn rook_rays(board: &Board, color: Color) -> BitBoard {
-        let mut rays = EMPTY;
-
-        let rooks = board.color_combined(color) & board.pieces(Piece::Rook);
-        for rook in rooks {
-            rays |= chess::get_rook_rays(rook);
-        }
-
-        rays
-    }
-
-    fn knight_attack_rays(board: &Board, color: Color) -> BitBoard {
-        let mut attacks = EMPTY;
-
-        let knights = board.color_combined(color) & board.pieces(Piece::Knight);
-        for knight in knights {
-            attacks |= chess::get_knight_moves(knight);
-        }
-
-        attacks
-    }
-
-    fn pawn_attack_rays(board: &Board, color: Color) -> BitBoard {
-        let mut attacks = EMPTY;
-
-        let pawns = board.color_combined(color) & board.pieces(Piece::Pawn);
-        for pawn in pawns {
-            attacks |= chess::get_pawn_attacks(pawn, color, !EMPTY);
-        }
-
-        attacks
     }
 
     fn king_side(board: &Board, file: File, color: Color) -> bool {
