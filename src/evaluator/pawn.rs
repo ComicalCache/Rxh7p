@@ -92,7 +92,7 @@ impl Evaluator {
 
         let mut total_eval = 0;
 
-        // Punish/reward isolated pawns in the middle more.
+        // Punish isolated pawns in the middle more.
         let factors: [f64; 8] = [1., 1., 1.25, 1.5, 1.5, 1.25, 1., 1.];
         for (file, factor) in [A, B, C, D, E, F, G, H].into_iter().zip(factors) {
             let pawn_file = own_pawns & chess::get_file(file);

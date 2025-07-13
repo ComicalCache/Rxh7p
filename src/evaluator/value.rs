@@ -43,6 +43,9 @@ impl Evaluator {
         if self.board.color_combined(self.color).popcnt() > 14 {
             total_mobility += rook_mobility / 8;
             total_mobility += queen_mobility / 8;
+        } else if self.board.color_combined(self.color).popcnt() > 10 {
+            total_mobility += rook_mobility / 4;
+            total_mobility += queen_mobility / 4;
         } else {
             total_mobility += rook_mobility;
             total_mobility += queen_mobility;

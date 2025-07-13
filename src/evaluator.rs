@@ -54,8 +54,9 @@ impl Evaluator {
             + self.isolated_pawns()
             + self.blocked_center_pawns()
             + self.bishop_pair()
-            + self.uncastled_block()
+            + self.uncastled()
             + self.connected_rooks()
+            + self.attack_enemy_king()
     }
 }
 

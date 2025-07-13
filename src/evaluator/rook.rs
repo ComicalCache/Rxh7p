@@ -72,10 +72,15 @@ impl Evaluator {
         total_eval
     }
 
-    pub(super) fn uncastled_block(&self) -> i64 {
+    pub(super) fn uncastled(&self) -> i64 {
         let mut total_eval = 0;
 
         let castle_rights = self.board.castle_rights(self.color);
+
+        // Punish if uncastled.
+        if castle_rights != CastleRights::NoRights {
+            total_eval -= ROOK_VALUE;
+        }
 
         // Punish if uncastled with low rook mobility.
         if castle_rights == CastleRights::Both || castle_rights == CastleRights::KingSide {
