@@ -21,7 +21,7 @@ impl Engine {
         }
     }
 
-    pub fn alpha_beta(&mut self, board: Board, a: i64, b: i64, depth: u16) -> i64 {
+    pub fn alpha_beta(&mut self, board: &Board, a: i64, b: i64, depth: u16) -> i64 {
         // Reset all statistics.
         self.searched_positions = 0;
         self.tt.reset_stats();
@@ -29,9 +29,9 @@ impl Engine {
         let res = self.__alpha_beta(board, a, b, depth, depth);
 
         // Show search statistics.
-        let (tt_hits, tt_misses, tt_entries) = self.tt.stats();
+        let (hits, misses, entries) = self.tt.stats();
         println!(
-            "Searched {} positions\nTT size {tt_entries}; {tt_hits} hits/{tt_misses} misses",
+            "Searched {} positions\nTT size {entries}; {hits} hits/{misses} misses",
             self.searched_positions
         );
 
@@ -40,7 +40,7 @@ impl Engine {
 
     fn __alpha_beta(
         &mut self,
-        board: Board,
+        board: &Board,
         mut a: i64,
         b: i64,
         depth: u16,
@@ -73,7 +73,7 @@ impl Engine {
 
         // Checkmate or stalemate.
         if board.status() != BoardStatus::Ongoing {
-            return self.evaluator.evaluate(board);
+            return self.evaluator.evaluate(*board);
         }
 
         // Search all sorted moves doing alpha-beta pruning.
@@ -82,15 +82,11 @@ impl Engine {
         for mv in Sorter::all(board) {
             // Evaluate new position.
             let new_eval =
-                -self.__alpha_beta(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
+                -self.__alpha_beta(&board.make_move_new(mv), -b, -a, depth - 1, start_depth);
 
             if new_eval > max_eval {
                 max_eval = new_eval;
                 best_mv = Some(mv);
-
-                if depth == start_depth {
-                    println!("[{max_eval}] {mv}");
-                }
             }
 
             if new_eval > a {
@@ -115,10 +111,10 @@ impl Engine {
         max_eval
     }
 
-    fn quiescence(&mut self, board: Board, mut a: i64, b: i64) -> i64 {
+    fn quiescence(&mut self, board: &Board, mut a: i64, b: i64) -> i64 {
         self.searched_positions += 1;
 
-        let mut max_eval = self.evaluator.evaluate(board);
+        let mut max_eval = self.evaluator.evaluate(*board);
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= b {
             return max_eval;
@@ -129,7 +125,7 @@ impl Engine {
 
         for capture in Sorter::quiescence(board) {
             // Evaluate new position.
-            let new_eval = -self.quiescence(board.make_move_new(capture), -b, -a);
+            let new_eval = -self.quiescence(&board.make_move_new(capture), -b, -a);
 
             if new_eval > max_eval {
                 max_eval = new_eval;
