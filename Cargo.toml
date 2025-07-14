@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 chess = "3.2.0"
+# fnv = "1.0.7"

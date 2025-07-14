@@ -6,18 +6,18 @@ use crate::{
     transposition_table::{TTEntry, TTEntryFlag, TranspositionTable},
 };
 
-pub struct Searcher {
+pub struct Engine {
     pub tt: TranspositionTable,
 }
 
-impl Searcher {
+impl Engine {
     pub fn new() -> Self {
-        Searcher {
+        Engine {
             tt: TranspositionTable::new(),
         }
     }
 
-    pub fn alpha_beta(
+    pub fn negamax(
         &mut self,
         board: Board,
         mut a: i64,
@@ -43,29 +43,34 @@ impl Searcher {
 
         // quiescence search to avoid event horizon
         if depth == 0 {
-            return self.quiescence(board, a, b);
+            let eval = self.quiescence(board, a, b);
+
+            let tt_entry = TTEntry::new(TTEntryFlag::Exact, depth, None, side, eval, hash);
+            self.tt.set(hash, tt_entry);
+
+            return eval;
         }
 
         // checkmate or stalemate
         if board.status() != BoardStatus::Ongoing {
-            return Evaluator::evaluate(board);
+            let eval = Evaluator::evaluate(&board);
+
+            let tt_entry = TTEntry::new(TTEntryFlag::Exact, depth, None, side, eval, hash);
+            self.tt.set(hash, tt_entry);
+
+            return eval;
         }
 
         // search all sorted moves doing alpha-beta pruning
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
-        for mv in Sorter::all(board) {
+        for mv in Sorter::all(&board) {
             // evaluate new position
-            let new_eval =
-                -self.alpha_beta(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
+            let new_eval = -self.negamax(board.make_move_new(mv), -b, -a, depth - 1, start_depth);
 
             if new_eval > max_eval {
                 max_eval = new_eval;
                 best_mv = Some(mv);
-
-                if depth == start_depth {
-                    println!("New best move {mv} with value {max_eval}");
-                }
             }
 
             if new_eval > a {
@@ -91,22 +96,22 @@ impl Searcher {
     }
 
     fn quiescence(&self, board: Board, mut a: i64, b: i64) -> i64 {
-        let mut best_eval = Evaluator::evaluate(board);
+        let mut max_eval = Evaluator::evaluate(&board);
 
         // cut-off, move was too good, opponent would not allow it
-        if best_eval >= b {
-            return best_eval;
+        if max_eval >= b {
+            return max_eval;
         }
-        if best_eval > a {
-            a = best_eval;
+        if max_eval > a {
+            a = max_eval;
         }
 
-        for capture in Sorter::quiescence(board) {
+        for capture in Sorter::quiescence(&board) {
             // evaluate new position
             let new_eval = -self.quiescence(board.make_move_new(capture), -b, -a);
 
-            if new_eval > best_eval {
-                best_eval = new_eval;
+            if new_eval > max_eval {
+                max_eval = new_eval;
             }
 
             if new_eval > a {
@@ -119,6 +124,6 @@ impl Searcher {
             }
         }
 
-        best_eval
+        max_eval
     }
 }
