@@ -1,43 +1,95 @@
 use chess::{BitBoard, Board, ChessMove, EMPTY, MoveGen, Square};
+use fnv::FnvHashMap;
 
-use crate::evaluator::Evaluator;
+use crate::{
+    evaluator::Evaluator,
+    transposition_table::{TTEntry, TTEntryFlag},
+};
 
 pub struct Sorter {}
 
 impl Sorter {
-    pub fn all(board: &Board) -> impl Iterator<Item = ChessMove> {
+    pub fn all(board: &Board, tt: &FnvHashMap<u64, TTEntry>) -> Vec<ChessMove> {
         let mut moves = MoveGen::new_legal(&board);
         let mut ret = Vec::with_capacity(moves.len());
 
-        // Search captures first
         moves.set_iterator_mask(Sorter::captures_mask(board));
-        ret.extend(Sorter::__quiescence(board, &mut moves));
+        // FIXME: Vec needed because otherwise multiple mutable references.
+        let captures = Vec::from_iter(Sorter::__quiescence(board, &mut moves));
 
-        // TODO: more sorting
         moves.set_iterator_mask(!EMPTY);
-        ret.extend(moves);
+        let mut pv_hash_moves = Vec::new();
+        let mut killer_moves = Vec::new();
+        let mut remaining_moves = Vec::new();
+        for mv in moves {
+            if let Some(entry) = tt.get(&board.make_move_new(mv).get_hash()) {
+                match entry.flag {
+                    TTEntryFlag::Exact => pv_hash_moves.push(mv),
+                    TTEntryFlag::Beta => killer_moves.push(mv),
+                    _ => {}
+                }
+            } else {
+                remaining_moves.push(mv);
+            }
+        }
 
-        ret.into_iter()
+        // Search hash PV moves.
+        ret.append(&mut pv_hash_moves);
+
+        // Search good and equal captures.
+        let mut captures_idx = 0;
+        for (idx, (eval, capture)) in captures.iter().enumerate() {
+            if *eval < 0 {
+                break;
+            }
+
+            // Store idx to skip to bad captures.
+            captures_idx = idx;
+            ret.push(*capture);
+        }
+
+        // Search killer moves.
+        ret.append(&mut killer_moves);
+
+        // Search bad captures.
+        ret.extend(
+            captures
+                .iter()
+                .skip(captures_idx)
+                .map(|(_, capture)| capture),
+        );
+
+        // Search remaining moves.
+        ret.append(&mut remaining_moves);
+
+        ret
     }
 
     pub fn quiescence(board: &Board) -> impl Iterator<Item = ChessMove> {
         let mut captures = MoveGen::new_legal(&board);
         captures.set_iterator_mask(Sorter::captures_mask(board));
 
-        // Vec needed because otherwise dropped.
+        // FIXME: Vec needed because otherwise dropped.
         let mut ret = Vec::with_capacity(captures.len());
-        ret.extend(Sorter::__quiescence(board, &mut captures));
+        ret.extend(Sorter::__quiescence(board, &mut captures).map(|(_, capture)| capture));
 
         ret.into_iter()
     }
 
-    fn __quiescence(board: &Board, captures: &mut MoveGen) -> impl Iterator<Item = ChessMove> {
+    fn __quiescence(
+        board: &Board,
+        captures: &mut MoveGen,
+    ) -> impl Iterator<Item = (i64, ChessMove)> {
         let mut sorted = Vec::with_capacity(captures.len());
-        sorted.extend(captures);
+        sorted.extend(captures.map(|capture| {
+            (
+                Sorter::static_exchange_eval_capture(board, capture),
+                capture,
+            )
+        }));
 
         // Sorts ascending, must thus be reversed.
-        sorted.sort_by_cached_key(|capture| Sorter::static_exchange_eval_capture(board, *capture));
-        sorted.reverse();
+        sorted.sort_by(|(eval_a, _), (eval_b, _)| eval_a.cmp(eval_b).reverse());
 
         sorted.into_iter()
     }

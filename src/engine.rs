@@ -79,7 +79,7 @@ impl Engine {
         // Search all sorted moves doing alpha-beta pruning.
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
-        for mv in Sorter::all(board) {
+        for mv in Sorter::all(board, &self.tt.entries) {
             // Evaluate new position.
             let new_eval =
                 -self.__alpha_beta(&board.make_move_new(mv), -b, -a, depth - 1, start_depth);

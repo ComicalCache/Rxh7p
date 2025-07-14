@@ -50,10 +50,14 @@ fn main() {
             }
         }
 
-        println!(
-            "[{}] {}",
-            sequence.first().unwrap_or(&"No eval".to_string()),
-            sequence[1..].join(" -> ")
-        );
+        if sequence.len() > 0 {
+            println!(
+                "[{}] {}",
+                sequence.first().unwrap(),
+                sequence[1..].join(" -> ")
+            );
+        } else {
+            println!("No eval");
+        }
     }
 }

@@ -1,7 +1,7 @@
 use chess::{ChessMove, Color};
 use fnv::FnvHashMap;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TTEntryFlag {
     Exact,
     Beta,
