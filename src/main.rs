@@ -1,4 +1,4 @@
-use std::{i64, io, str::FromStr};
+use std::{io, str::FromStr, time::Duration};
 
 use chess::Board;
 
@@ -9,7 +9,7 @@ mod evaluator;
 mod sorter;
 mod transposition_table;
 
-const DEPTH: u16 = 4;
+const DEPTH: u16 = 10;
 
 fn main() {
     let mut engine = Engine::new();
@@ -21,20 +21,24 @@ fn main() {
             .expect("Unable to read Stdin");
 
         let mut board = Board::from_str(&fen).unwrap();
-
-        let _ = engine.negamax(board, i64::MIN + 1, i64::MAX, DEPTH, DEPTH);
+        let eval = engine.iterative_deepening(board, DEPTH, Duration::new(5, 0));
 
         let mut sequence = Vec::new();
         for _ in 0..DEPTH {
             let entry = engine.tt.get(board.get_hash());
+            assert!(
+                entry.hash == board.get_hash(),
+                "Transposition table didn't contain searched position to display move to make."
+            );
+
             if let Some(mv) = entry.mv {
-                sequence.push(format!("{}: {mv}", entry.eval(board.side_to_move())));
+                sequence.push(format!("{mv}"));
                 board = board.make_move_new(mv);
             } else {
                 break;
             }
         }
 
-        println!("{}", sequence.join(" -> "));
+        println!("[{eval}]: {}", sequence.join(" -> "));
     }
 }

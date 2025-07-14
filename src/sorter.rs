@@ -25,8 +25,8 @@ impl Sorter {
         let mut moves = MoveGen::new_legal(board);
 
         let captures = board.color_combined(!board.side_to_move());
-        // en passant moves are not included by the above mask since they don't land on the same
-        // square of which they take
+        // En-passant moves are not included by the above mask since they don't land on the same
+        // square of which they take.
         let en_passant = match board.en_passant() {
             Some(square) => BitBoard::from_square(square),
             None => EMPTY,
@@ -60,10 +60,10 @@ impl Sorter {
     }
 
     fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
-        // FIXME: rewrite this so it doesn't have to generate the moves (VERY inefficient)
+        // FIXME: rewrite this so it doesn't have to generate the moves (VERY inefficient).
         let mut captures = Sorter::captures(board);
 
-        // excludes en-passant but doesn't matter for now
+        // FIXME: excludes en-passant but doesn't matter for now.
         captures.set_iterator_mask(BitBoard::from_square(square));
 
         let mut smallest_attack = None;

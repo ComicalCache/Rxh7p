@@ -1,3 +1,9 @@
+# Test Positions
+
+- 3qkb1r/r2npppp/b2p1n2/pBp5/4P3/2NP1N2/PPPB1PPP/R2Q1RK1 w k - 3 9
+
+# Knowledge
+
 ## Transposition Table
 
 - https://mediocrechess.blogspot.com/2007/01/guide-transposition-tables.html
@@ -8,6 +14,7 @@
 
 - https://www.chessprogramming.org/Alpha-Beta#Negamax_Framework
 - https://www.chessprogramming.org/Transposition_Table
+- https://www.chessprogramming.org/Iterative_Deepening
 
 ## Quiescence Search
 
@@ -21,8 +28,6 @@
 
 ## Spare Time TODOs
 
-- https://mediocrechess.blogspot.com/2007/01/guide-transposition-tables.html
-  - About replacement schemes
 - https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Futility_Pruning
 - https://www.chessprogramming.org/Piece-Square_Tables

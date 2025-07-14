@@ -5,7 +5,7 @@ use chess::{ChessMove, Color};
 pub const INDEX_BITS: usize = 25;
 const NON_INDEX_BITS: usize = 64 - INDEX_BITS;
 const MASK: usize = usize::MAX >> NON_INDEX_BITS;
-const SIZE: usize = 2usize.pow(INDEX_BITS as u32);
+const SIZE: usize = MASK + 1;
 
 #[derive(Clone, Copy)]
 pub enum TTEntryFlag {
@@ -30,7 +30,12 @@ impl TranspositionTable {
     }
 
     pub fn set(&mut self, hash: u64, entry: TTEntry) {
-        self.entries[hash as usize & MASK] = entry;
+        let curr_entry = self.entries[hash as usize & MASK];
+
+        // Depth replacement.
+        if curr_entry.hash == hash && curr_entry.depth <= entry.depth {
+            self.entries[hash as usize & MASK] = entry;
+        }
     }
 }
 
@@ -40,7 +45,7 @@ pub struct TTEntry {
     pub flag: TTEntryFlag,
     /// What depth was the entry recorded at
     pub depth: u16,
-    /// The move,
+    /// The move
     pub mv: Option<ChessMove>,
     /// The color of the player making the move
     color: Color,
@@ -70,7 +75,7 @@ impl TTEntry {
     }
 
     pub fn eval(&self, color: Color) -> i64 {
-        // adjust relative value to color that requests
+        // Adjust relative value to color that requests.
         if self.color == color {
             self.value
         } else {
