@@ -28,6 +28,8 @@
 
 ## Spare Time TODOs
 
+- https://www.chessprogramming.org/Repetitions
+- https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Futility_Pruning
 - https://www.chessprogramming.org/Piece-Square_Tables

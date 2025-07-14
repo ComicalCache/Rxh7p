@@ -34,13 +34,14 @@ impl Engine {
         board: Board,
         max_depth: u16,
         time_limit: Duration,
-    ) -> i64 {
+    ) -> (i64, u16) {
         let mut max_eval = 0;
 
         self.time_limit = time_limit;
         self.start_time = SystemTime::now();
         self.time_over = false;
 
+        let mut searched_depth = 0;
         for depth in 1..=max_depth {
             // Search was cancelled, don't accept result.
             if self.time_over {
@@ -51,11 +52,12 @@ impl Engine {
             let new_eval = self.negamax(board, i64::MIN + 1, i64::MAX, depth);
 
             max_eval = max(new_eval, max_eval);
+            searched_depth = depth;
 
             println!("Evaluation at depth {depth}: {max_eval}");
         }
 
-        max_eval
+        (max_eval, searched_depth)
     }
 
     pub fn negamax(&mut self, board: Board, mut a: i64, b: i64, depth: u16) -> i64 {
@@ -72,14 +74,15 @@ impl Engine {
         let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
-        let entry = self.tt.get(hash);
-        if entry.hash == hash && entry.depth >= depth {
-            let eval = entry.eval(side);
-            match entry.flag {
-                TTEntryFlag::Exact => return eval,
-                TTEntryFlag::Beta if eval >= b => return eval,
-                TTEntryFlag::Alpha if eval <= a => return eval,
-                _ => {}
+        if let Some(entry) = self.tt.get(hash) {
+            if entry.depth >= depth {
+                let eval = entry.eval(side);
+                match entry.flag {
+                    TTEntryFlag::Exact => return eval,
+                    TTEntryFlag::Beta if eval >= b => return eval,
+                    TTEntryFlag::Alpha if eval <= a => return eval,
+                    _ => {}
+                }
             }
         }
 
@@ -87,7 +90,7 @@ impl Engine {
         if depth == 0 {
             let eval = self.quiescence(board, a, b);
 
-            let tt_entry = TTEntry::new(TTEntryFlag::Exact, depth, None, side, eval, hash);
+            let tt_entry = TTEntry::new(TTEntryFlag::Exact, depth, None, side, eval);
             self.tt.set(hash, tt_entry);
 
             return eval;
@@ -97,7 +100,7 @@ impl Engine {
         if board.status() != BoardStatus::Ongoing {
             let eval = Evaluator::evaluate(&board);
 
-            let tt_entry = TTEntry::new(TTEntryFlag::Exact, depth, None, side, eval, hash);
+            let tt_entry = TTEntry::new(TTEntryFlag::Exact, depth, None, side, eval);
             self.tt.set(hash, tt_entry);
 
             return eval;
@@ -137,7 +140,7 @@ impl Engine {
             (_, true) => TTEntryFlag::Beta,
             _ => TTEntryFlag::Exact,
         };
-        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval, hash);
+        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval);
         self.tt.set(hash, tt_entry);
 
         max_eval

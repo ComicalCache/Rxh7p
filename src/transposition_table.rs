@@ -1,11 +1,7 @@
 use std::i64;
 
 use chess::{ChessMove, Color};
-
-pub const INDEX_BITS: usize = 25;
-const NON_INDEX_BITS: usize = 64 - INDEX_BITS;
-const MASK: usize = usize::MAX >> NON_INDEX_BITS;
-const SIZE: usize = MASK + 1;
+use fnv::FnvHashMap;
 
 #[derive(Clone, Copy)]
 pub enum TTEntryFlag {
@@ -15,26 +11,28 @@ pub enum TTEntryFlag {
 }
 
 pub struct TranspositionTable {
-    pub entries: Vec<TTEntry>,
+    pub entries: FnvHashMap<u64, TTEntry>,
 }
 
 impl TranspositionTable {
     pub fn new() -> Self {
         TranspositionTable {
-            entries: vec![Default::default(); SIZE],
+            entries: FnvHashMap::default(),
         }
     }
 
-    pub fn get(&self, hash: u64) -> TTEntry {
-        self.entries[hash as usize & MASK]
+    pub fn get(&self, hash: u64) -> Option<&TTEntry> {
+        self.entries.get(&hash)
     }
 
     pub fn set(&mut self, hash: u64, entry: TTEntry) {
-        let curr_entry = self.entries[hash as usize & MASK];
-
         // Depth replacement.
-        if curr_entry.hash == hash && curr_entry.depth <= entry.depth {
-            self.entries[hash as usize & MASK] = entry;
+        if let Some(curr_entry) = self.entries.get(&hash) {
+            if curr_entry.depth <= entry.depth {
+                self.entries.insert(hash, entry);
+            }
+        } else {
+            self.entries.insert(hash, entry);
         }
     }
 }
@@ -51,8 +49,6 @@ pub struct TTEntry {
     color: Color,
     /// Position value
     value: i64,
-    /// Full position has to detect colisions
-    pub hash: u64,
 }
 
 impl TTEntry {
@@ -62,7 +58,6 @@ impl TTEntry {
         mv: Option<ChessMove>,
         color: Color,
         value: i64,
-        hash: u64,
     ) -> Self {
         TTEntry {
             flag,
@@ -70,7 +65,6 @@ impl TTEntry {
             mv,
             color,
             value,
-            hash,
         }
     }
 
@@ -92,7 +86,6 @@ impl Default for TTEntry {
             mv: None,
             color: Color::White,
             value: i64::MIN + 1,
-            hash: 0,
         }
     }
 }
