@@ -1,5 +1,3 @@
-use std::i64;
-
 use chess::{ChessMove, Color};
 use fnv::FnvHashMap;
 

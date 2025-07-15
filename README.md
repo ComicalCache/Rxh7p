@@ -1,6 +1,16 @@
 # Test Positions
 
+With advantage:
+
 - 3qkb1r/r2npppp/b2p1n2/pBp5/4P3/2NP1N2/PPPB1PPP/R2Q1RK1 w k - 3 9
+
+Threefold repetition:
+
+- 8/r3bp2/4k1p1/P7/P2QP2P/3P1P1P/5R2/4B1K1 w - - 6 35
+
+Pawn endgame:
+
+- 8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1
 
 # Knowledge
 
@@ -21,14 +31,20 @@
 - https://www.chessprogramming.org/Quiescence_Search
 - https://www.chessprogramming.org/Horizon_Effect
 
+## Repetition
+
+- https://www.chessprogramming.org/Irreversible_Moves
+- https://www.chessprogramming.org/Repetitions
+- https://en.wikipedia.org/wiki/Threefold_repetition
+
 ## Move Ordering
 
 - https://www.chessprogramming.org/MVV-LVA
 - https://www.chessprogramming.org/Static_Exchange_Evaluation
 
-## Spare Time TODOs
+# Spare Time TODOs
 
-- https://www.chessprogramming.org/Repetitions
+- https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Futility_Pruning

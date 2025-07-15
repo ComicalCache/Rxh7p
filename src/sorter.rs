@@ -1,18 +1,13 @@
-use std::i64;
-
 use chess::{BitBoard, Board, ChessMove, EMPTY, MoveGen, Square};
 
-use crate::{
-    evaluator::Evaluator,
-    transposition_table::{TTEntryFlag, TranspositionTable},
-};
+use crate::{engine::Engine, evaluator::Evaluator, transposition_table::TTEntryFlag};
 
 pub struct Sorter {}
 
 impl Sorter {
     pub fn all(
         board: &Board,
-        tt: &TranspositionTable,
+        engine: &Engine,
         depth: u16,
         prio_move: Option<ChessMove>,
     ) -> Vec<ChessMove> {
@@ -31,7 +26,10 @@ impl Sorter {
         let mut remaining_moves = Vec::new();
 
         for mv in moves {
-            if let Some(entry) = tt.get(board.make_move_new(mv).get_hash()) {
+            if let Some(entry) = engine
+                .tt
+                .get(board.make_move_new(mv).get_hash() + engine.board_ply + engine.search_ply)
+            {
                 match entry.flag {
                     // PV hash move at higher or equal depth.
                     TTEntryFlag::Exact if entry.depth >= depth => pv_hash_moves.push(mv),
@@ -140,7 +138,7 @@ impl Sorter {
 
     fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
         // FIXME: rewrite this so it doesn't have to generate the moves (VERY inefficient).
-        let mut captures = MoveGen::new_legal(&board);
+        let mut captures = MoveGen::new_legal(board);
         // FIXME: excludes en-passant but shouldn't matter too much.
         captures.set_iterator_mask(Sorter::captures_mask(board) & BitBoard::from_square(square));
 
