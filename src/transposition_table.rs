@@ -11,6 +11,9 @@ pub enum TTEntryFlag {
 }
 
 pub struct TranspositionTable {
+    // Using a FnvHashMap should never overwrite any entries.
+    // FIXME: when replacing for a more performant solution in the future, that fact needs to be
+    // considered where ever entries are used!
     pub entries: FnvHashMap<u64, TTEntry>,
 }
 
