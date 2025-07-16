@@ -18,11 +18,12 @@ impl Sorter {
 
         // FIXME: Vec needed because otherwise multiple mutable references.
         moves.set_iterator_mask(Sorter::captures_mask(board));
-        let captures = Vec::from_iter(Sorter::__quiescence(board, &mut moves));
+        let captures = Sorter::see_sort_captures(board, Vec::from_iter(&mut moves));
 
         moves.set_iterator_mask(!EMPTY);
         let mut pv_hash_moves = Vec::new();
         let mut killer_moves = Vec::new();
+        let mut bad_captures = Vec::new();
         let mut remaining_moves = Vec::new();
 
         for mv in moves {
@@ -47,32 +48,24 @@ impl Sorter {
             ret.push(mv);
         }
 
-        // Search hash PV moves.
+        // Search PV hash moves.
         ret.append(&mut pv_hash_moves);
 
         // Search good and equal captures.
-        let mut captures_idx = 0;
-        for (idx, (eval, capture)) in captures.iter().enumerate() {
-            // Stop once bad captures occur, the list is sorted.
-            if *eval < 0 {
-                break;
+        for (eval, capture) in captures {
+            if eval >= 0 {
+                ret.push(capture);
+            } else {
+                // Store bad captures to add later.
+                bad_captures.push(capture);
             }
-
-            // Store idx to skip to bad captures.
-            captures_idx = idx;
-            ret.push(*capture);
         }
 
         // Search killer moves.
         ret.append(&mut killer_moves);
 
         // Search bad captures.
-        ret.extend(
-            captures
-                .iter()
-                .skip(captures_idx)
-                .map(|(_, capture)| capture),
-        );
+        ret.extend(bad_captures);
 
         // Search remaining moves.
         ret.append(&mut remaining_moves);
@@ -81,24 +74,10 @@ impl Sorter {
     }
 
     pub fn quiescence(board: &Board) -> impl Iterator<Item = ChessMove> {
-        let mut captures = MoveGen::new_legal(board);
-        captures.set_iterator_mask(Sorter::captures_mask(board));
+        let mut moves = MoveGen::new_legal(board);
+        moves.set_iterator_mask(Sorter::captures_mask(board));
 
-        // FIXME: Vec needed because otherwise dropped.
-        let mut ret = Vec::with_capacity(captures.len());
-        ret.extend(Sorter::__quiescence(board, &mut captures).map(|(_, capture)| capture));
-
-        ret.into_iter()
-    }
-
-    fn __quiescence(
-        board: &Board,
-        captures: &mut MoveGen,
-    ) -> impl Iterator<Item = (i64, ChessMove)> {
-        let mut sorted = Vec::with_capacity(captures.len());
-        sorted.extend(captures.map(|capture| (Sorter::see_capture(board, capture), capture)));
-        sorted.sort_by(|(eval_a, _), (eval_b, _)| eval_a.cmp(eval_b).reverse());
-        sorted.into_iter()
+        Sorter::see_sort_captures(board, Vec::from_iter(&mut moves)).map(|(_, capture)| capture)
     }
 
     fn captures_mask(board: &Board) -> BitBoard {
@@ -111,6 +90,20 @@ impl Sorter {
         };
 
         captures | en_passant
+    }
+
+    fn see_sort_captures(
+        board: &Board,
+        captures: Vec<ChessMove>,
+    ) -> impl Iterator<Item = (i64, ChessMove)> {
+        let mut sorted = Vec::with_capacity(captures.len());
+
+        for capture in &captures {
+            sorted.push((Sorter::see_capture(board, *capture), *capture));
+        }
+        sorted.sort_by(|(eval_a, _), (eval_b, _)| eval_a.cmp(eval_b).reverse());
+
+        sorted.into_iter()
     }
 
     fn see_capture(board: &Board, capture: ChessMove) -> i64 {
@@ -138,12 +131,15 @@ impl Sorter {
 
     fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
         // FIXME: rewrite this so it doesn't have to generate the moves (VERY inefficient).
+        // It appears as if this is necessary since it's always a different position throughout
+        // the recursion... :(
         let mut captures = MoveGen::new_legal(board);
-        // FIXME: excludes en-passant but shouldn't matter too much.
+        // FIXME: excludes en-passant but shouldn't matter too much for now.
         captures.set_iterator_mask(Sorter::captures_mask(board) & BitBoard::from_square(square));
 
         let mut smallest_attack = None;
         let mut smallest_attack_value = i64::MAX;
+
         for capture in captures {
             let curr_value = Evaluator::piece_value(board.piece_on(capture.get_source()).unwrap());
             if curr_value < smallest_attack_value {
