@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "Rxh7p"
+version = "0.1.0"
+dependencies = [
+ "chess",
+ "fnv",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -54,14 +62,6 @@ dependencies = [
  "failure",
  "nodrop",
  "rand",
-]
-
-[[package]]
-name = "chess-engine"
-version = "0.1.0"
-dependencies = [
- "chess",
- "fnv",
 ]
 
 [[package]]
