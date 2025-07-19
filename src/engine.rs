@@ -1,5 +1,6 @@
 use std::{
     cmp::max,
+    sync::mpsc::Receiver,
     time::{Duration, SystemTime},
 };
 
@@ -7,98 +8,354 @@ use chess::{Board, BoardStatus, ChessMove, Color, Piece};
 
 use crate::{
     evaluator::Evaluator,
-    printf,
     sorter::Sorter,
-    transposition_table::{TTEntry, TTEntryFlag, TranspositionTable},
+    transposition_table::{TranspositionTable, TtEntry, TtEntryFlag},
+    uci::{GoCommandConfig, Uci},
 };
 
-pub struct Engine {
-    pub board: Board,
-    pub tt: TranspositionTable,
+#[derive(Debug)]
+struct Search {
+    // Ponder mode.
+    ponder: bool,
 
-    position_stack: Vec<(Board, bool)>,
+    // Moves to search.
+    moves: Vec<ChessMove>,
+    // Stop infinite search.
+    stop_infinite: bool,
 
-    pub board_ply: u64,
-    pub search_ply: u64,
+    // Ply of played moves during search.
+    ply: u16,
+    // Count of nodes searched.
+    nodes: u64,
 
-    time_limit: Duration,
+    // When the search started.
     start_time: SystemTime,
 
-    prio_move: Option<ChessMove>,
+    // Search no ply deeper than this.
+    depth: Option<u16>,
+    // Search no more nodes than this.
+    node_limit: Option<u64>,
+    // Think time limit.
+    move_time: Option<Duration>,
+
+    // For following iterations, store the principal variation move to play.
+    pv_move: Option<ChessMove>,
+}
+
+impl Search {
+    fn new() -> Self {
+        Search {
+            ponder: false,
+            moves: Vec::new(),
+            stop_infinite: false,
+            ply: 0,
+            nodes: 0,
+            start_time: SystemTime::UNIX_EPOCH,
+            depth: None,
+            node_limit: None,
+            move_time: None,
+            pv_move: None,
+        }
+    }
+}
+
+pub struct Engine {
+    // Internal board.
+    pub board: Board,
+    // Transposition table.
+    pub tt: TranspositionTable,
+
+    // Stack of played positions to detect threefold repetitions.
+    position_stack: Vec<(Board, bool)>,
+
+    // TODO: 50 move rule.
+
+    // Ply of played moves. Needed to access previously computed TT entries in next search.
+    pub board_ply: u16,
+
+    // Information about the current search.
+    search: Search,
+
+    // Stop receiver. Receives if a stop command was sent.
+    stop_rx: Receiver<()>,
+    // Ponder receiver. Receives if a ponderhit command was sent.
+    ponderhit_rx: Receiver<()>,
 }
 
 impl Engine {
-    pub fn new(board: Board) -> Self {
+    pub fn new(stop_rx: Receiver<()>, ponderhit_rx: Receiver<()>) -> Self {
+        let board = Board::default();
+
         Engine {
             board,
             tt: TranspositionTable::new(),
             position_stack: vec![(board, true)],
             board_ply: 0,
-            search_ply: 0,
-            time_limit: Duration::ZERO,
-            start_time: SystemTime::UNIX_EPOCH,
-            prio_move: None,
+            search: Search::new(),
+            stop_rx,
+            ponderhit_rx,
         }
     }
 
-    pub fn make_move(&mut self, mv: ChessMove) {
-        self.board = self.board.make_move_new(mv);
-
-        let irreversible = self.move_is_irreversible(&self.board, mv);
-        self.position_stack.push((self.board, irreversible));
-
-        self.board_ply += 1;
+    pub fn init(&mut self, board: Board) {
+        self.board = board;
+        self.tt.clear();
+        self.position_stack = vec![(board, true)];
+        self.board_ply = 0;
+        self.search = Search::new();
     }
 
-    pub fn iterative_deepening(&mut self, max_depth: u16, time_limit: Duration) -> (i64, u16) {
-        let mut eval = 0;
+    pub fn uci_position(&mut self, mut board: Board, moves: Option<Vec<ChessMove>>) {
+        // Initial position does not match engine.
+        // Safe to unwrap since always one board exists (default by default...).
+        if board.get_hash() != self.position_stack.first().unwrap().0.get_hash() {
+            self.init(board);
+        }
 
-        // Set time constrains.
-        self.time_limit = time_limit;
-        self.start_time = SystemTime::now();
+        // Nothing more to do.
+        if moves.is_none() {
+            return;
+        }
 
-        // Reset prio move of previous iterative search.
-        self.prio_move = None;
+        // Safe to unwrap as it was tested before.
+        let moves = moves.unwrap();
+        let moves_len = moves.len();
 
-        let mut searched_depth = 0;
-        for depth in 1..=max_depth {
-            // i64::MIN + 1 to avoid overflow when negating the value.
-            if let Some(new_eval) =
-                self.negamax(self.board, i64::MIN + 1, i64::MAX, depth, self.prio_move)
-            {
-                eval = new_eval;
+        // Apply all moves on the start board.
+        for (idx, mv) in moves.into_iter().enumerate() {
+            board = board.make_move_new(mv);
 
-                // Store best move of previous iteration to search first in next iteration.
-                if let Some(entry) = self.tt.get(self.board.get_hash() + self.board_ply) {
-                    self.prio_move = entry.mv;
+            // Plus one since position 0 contains start board.
+            if let Some(position) = self.position_stack.get(idx + 1) {
+                // Position matches history, no action needed.
+                if board == position.0 {
+                    continue;
                 }
 
-                searched_depth = depth;
+                // Sent position deviates starting here. Clear vector to add all new positions.
+                self.position_stack.drain(idx + 1..);
+            }
 
-                // Make sure to overwrite everything previous.
-                printf!("\r Depth: {depth} [EVAL={eval}]                   ");
+            // Add new moves to position stack. This implicitly handles the new latest moves even
+            // for an identical starting position since the position stack doesn't include them.
+            let irreversible = self.move_is_irreversible(&board, mv);
+            self.position_stack.push((board, irreversible));
+        }
+
+        // Drain position stack if there are now less moves than previously known moves. No minus
+        // one because position stack contains initial position.
+        if self.position_stack.len() - 1 < moves_len {
+            self.position_stack.drain(moves_len..);
+        }
+        // Set new board to self.
+        self.board = board;
+        // Set new ply. Minus one since initial position is on the stack.
+        self.board_ply = (self.position_stack.len() - 1) as u16;
+    }
+
+    pub fn go(&mut self, config: GoCommandConfig) {
+        self.go_prelude(config);
+        self.iterative_deepening();
+        self.go_epilogue();
+    }
+
+    fn go_prelude(&mut self, config: GoCommandConfig) {
+        self.search = Search::new();
+
+        // Reset stop_rx and ponderhit rx as they might cause the next search to short circuit.
+        while self.stop_rx.try_recv().is_ok() {}
+        while self.ponderhit_rx.try_recv().is_ok() {}
+
+        // Set search move settings.
+        self.search.moves = config.searchmoves;
+
+        // Set time appropriately to player clocks.
+        // FIXME: improve time management.
+        match self.board.side_to_move() {
+            Color::White => {
+                if let Some(time) = config.wtime {
+                    let inc = config.winc.unwrap_or(Duration::ZERO);
+                    // Just divide remaining time by 25.
+                    self.search.move_time = Some((time + inc).div_f64(25.));
+                }
+            }
+            Color::Black => {
+                if let Some(time) = config.btime {
+                    let inc = config.binc.unwrap_or(Duration::ZERO);
+                    // Just divide remaining time by 25.
+                    self.search.move_time = Some((time + inc).div_f64(25.));
+                }
+            }
+        }
+        // Go movetime was set.
+        if let Some(time) = config.move_time {
+            if let Some(move_time) = self.search.move_time {
+                // If move time is less than previously calculated time, use that.
+                if time < move_time {
+                    self.search.move_time = Some(time);
+                }
             } else {
-                // Search was cancelled.
-                println!("\r Cancelled search at depth {depth} with evaluation: {eval}");
-                break;
+                // No time yet yet.
+                self.search.move_time = Some(time);
             }
         }
 
-        (eval, searched_depth)
+        self.search.node_limit = config.nodes;
+        self.search.depth = config.depth;
+        self.search.ponder = config.ponder;
     }
 
-    pub fn negamax(
+    fn go_epilogue(&self) {
+        // Make best found move.
+        let new_board = self.board.make_move_new(
+            self.search
+                .pv_move
+                .expect("Previous search failed to find single move."),
+        );
+        // Find moves to ponder on when playing best move.
+        let ponder_moves = Sorter::all(
+            // Safe to unwrap since previous iterative deepening search found a move.
+            &new_board,
+            0,
+            &self.tt,
+            // Plus one since a move was played above.
+            self.board_ply + 1,
+            self.search.ply,
+            None,
+        );
+
+        let best_move = self
+            .tt
+            .get(self.board.get_hash() + self.board_ply as u64)
+            .expect("Failed to fetch board from TT")
+            .mv
+            .expect("Board TT entry does not have a best move");
+
+        Uci::best_move(best_move, Some(ponder_moves.into_iter().take(5).collect()));
+    }
+
+    fn iterative_deepening(&mut self) {
+        // Reset principal variation move of previous iterative search.
+        self.search.pv_move = None;
+
+        let searchmoves = if self.search.moves.is_empty() {
+            None
+        } else {
+            Some(self.search.moves.clone())
+        };
+
+        // Always set start time even if no go movetime command was sent.
+        self.search.start_time = SystemTime::now();
+
+        for depth in 1.. {
+            // i64::MIN + 1 to avoid overflow when negating the value.
+            if let Some(new_eval) = self.negamax(
+                self.board,
+                &searchmoves,
+                i64::MIN + 1,
+                i64::MAX,
+                depth,
+                self.search.pv_move,
+            ) {
+                // Store best move of previous iteration to search first in next iteration.
+                if let Some(entry) = self.tt.get(self.board.get_hash() + self.board_ply as u64) {
+                    self.search.pv_move = entry.mv;
+                }
+
+                Uci::search_info(
+                    depth,
+                    SystemTime::now()
+                        .duration_since(self.search.start_time)
+                        .unwrap(),
+                    self.search.nodes,
+                    // FIXME: gather pv should not be done here on the hot path?
+                    self.get_pv(depth),
+                    new_eval,
+                );
+            } else {
+                // Search was cancelled.
+                break;
+            }
+        }
+    }
+
+    fn get_pv(&self, depth: u16) -> Vec<ChessMove> {
+        let mut pv = Vec::with_capacity(depth as usize);
+        let mut temp_board = self.board;
+        let mut idx = 0;
+        while let Some(entry) = self
+            .tt
+            .get(temp_board.get_hash() + self.board_ply as u64 + idx)
+            && let Some(mv) = entry.mv
+            && idx < depth as u64
+        {
+            pv.push(mv);
+            temp_board = temp_board.make_move_new(mv);
+
+            idx += 1;
+        }
+
+        pv
+    }
+
+    fn stop_negamax(&mut self) -> bool {
+        if self.ponderhit_rx.try_recv().is_ok() {
+            self.search.ponder = false;
+        }
+
+        // Never stop in ponder mode.
+        if self.search.ponder {
+            return false;
+        }
+
+        // Depth limit.
+        if let Some(depth) = self.search.depth
+            && self.search.ply >= depth
+        {
+            return true;
+        }
+
+        // Node limit.
+        if let Some(nodes) = self.search.node_limit
+            && self.search.nodes >= nodes
+        {
+            return true;
+        }
+
+        // Move time limit.
+        if let Some(move_time) = self.search.move_time
+            && SystemTime::now()
+                .duration_since(self.search.start_time)
+                .unwrap()
+                > move_time
+        {
+            return true;
+        }
+
+        // Infinite search.
+        if self.search.stop_infinite || self.stop_rx.try_recv().is_ok() {
+            self.search.stop_infinite = true;
+            return true;
+        }
+
+        false
+    }
+
+    fn negamax(
         &mut self,
         board: Board,
-        mut a: i64,
-        b: i64,
+        searchmoves: &Option<Vec<ChessMove>>,
+        mut alpha: i64,
+        beta: i64,
         depth: u16,
-        prio_move: Option<ChessMove>,
+        pv_move: Option<ChessMove>,
     ) -> Option<i64> {
-        // Check if time over and cancel iterative search.
-        if SystemTime::now().duration_since(self.start_time).unwrap() > self.time_limit {
+        if self.stop_negamax() {
             return None;
         }
+
+        // Count node as visited.
+        self.search.nodes += 1;
 
         // Return score of 0 if position is a three-fold repetition.
         if self.threefold_repetition() {
@@ -107,7 +364,7 @@ impl Engine {
 
         // Quiescence search to avoid event horizon.
         if depth == 0 {
-            return Some(Engine::quiescence(board, a, b));
+            return Some(Engine::quiescence(board, alpha, beta));
         }
 
         // Checkmate or stalemate.
@@ -115,8 +372,8 @@ impl Engine {
             return Some(Evaluator::evaluate(&board));
         }
 
-        let prev_a = a;
-        let hash = board.get_hash() + self.board_ply + self.search_ply;
+        let prev_alpha = alpha;
+        let hash = board.get_hash() + self.board_ply as u64 + self.search.ply as u64;
         let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
@@ -125,9 +382,9 @@ impl Engine {
         {
             let eval = entry.eval(side);
             match entry.flag {
-                TTEntryFlag::Exact => return Some(eval),
-                TTEntryFlag::Beta if eval >= b => return Some(eval),
-                TTEntryFlag::Alpha if eval <= a => return Some(eval),
+                TtEntryFlag::Exact => return Some(eval),
+                TtEntryFlag::Beta if eval >= beta => return Some(eval),
+                TtEntryFlag::Alpha if eval <= alpha => return Some(eval),
                 _ => {}
             }
         }
@@ -136,20 +393,39 @@ impl Engine {
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
 
-        for mv in Sorter::all(&board, self, depth, prio_move) {
-            let new_board = board.make_move_new(mv);
+        let moves = if let Some(searchmoves) = searchmoves {
+            searchmoves
+        } else {
+            &Sorter::all(
+                &board,
+                depth,
+                &self.tt,
+                self.board_ply,
+                self.search.ply,
+                pv_move,
+            )
+        };
+
+        let mut move_number = 1;
+        for mv in moves {
+            if self.search.ply == 0 {
+                Uci::curr_move_info(*mv, move_number);
+                move_number += 1;
+            }
+
+            let new_board = board.make_move_new(*mv);
 
             // Add new position to and increment search ply.
-            let irreversible = self.move_is_irreversible(&new_board, mv);
+            let irreversible = self.move_is_irreversible(&new_board, *mv);
             self.position_stack.push((new_board, irreversible));
-            self.search_ply += 1;
+            self.search.ply += 1;
 
             // Evaluate new position.
-            let new_eval = self.negamax(new_board, -b, -a, depth - 1, None);
+            let new_eval = self.negamax(new_board, &None, -beta, -alpha, depth - 1, None);
 
             // Pop new position from the stack and decrement search ply.
             self.position_stack.pop();
-            self.search_ply -= 1;
+            self.search.ply -= 1;
 
             if let Some(mut new_eval) = new_eval {
                 // Invert result due to symmetry.
@@ -157,13 +433,13 @@ impl Engine {
 
                 if new_eval > max_eval {
                     max_eval = new_eval;
-                    best_mv = Some(mv);
+                    best_mv = Some(*mv);
                 }
 
-                a = max(new_eval, a);
+                alpha = max(new_eval, alpha);
 
                 // Cut-off, move was too good, opponent would not allow it.
-                if new_eval >= b {
+                if new_eval >= beta {
                     break;
                 }
             } else {
@@ -173,36 +449,36 @@ impl Engine {
         }
 
         // Store entry.
-        let flag = match (max_eval <= prev_a, max_eval >= b) {
-            (true, _) => TTEntryFlag::Alpha,
-            (_, true) => TTEntryFlag::Beta,
-            _ => TTEntryFlag::Exact,
+        let flag = match (max_eval <= prev_alpha, max_eval >= beta) {
+            (true, _) => TtEntryFlag::Alpha,
+            (_, true) => TtEntryFlag::Beta,
+            _ => TtEntryFlag::Exact,
         };
-        let tt_entry = TTEntry::new(flag, depth, best_mv, side, max_eval);
+        let tt_entry = TtEntry::new(flag, depth, best_mv, side, max_eval);
         self.tt.set(hash, tt_entry);
 
         Some(max_eval)
     }
 
-    fn quiescence(board: Board, mut a: i64, b: i64) -> i64 {
+    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
         let mut max_eval = Evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
-        if max_eval >= b {
+        if max_eval >= beta {
             return max_eval;
         }
 
-        a = max(max_eval, a);
+        alpha = max(max_eval, alpha);
 
         for capture in Sorter::quiescence(&board) {
             // Evaluate new position.
-            let new_eval = -Engine::quiescence(board.make_move_new(capture), -b, -a);
+            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
 
             max_eval = max(new_eval, max_eval);
-            a = max(new_eval, a);
+            alpha = max(new_eval, alpha);
 
             // Cut-off, move was too good, opponent would not allow it.
-            if new_eval >= b {
+            if new_eval >= beta {
                 break;
             }
         }

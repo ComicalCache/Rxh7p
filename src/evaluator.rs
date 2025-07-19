@@ -5,8 +5,7 @@ const BISHOP_VALUE: i64 = 350;
 const KNIGHT_VALUE: i64 = 300;
 const ROOK_VALUE: i64 = 500;
 const QUEEN_VALUE: i64 = 900;
-// Minues one, otherwise in mate situations it can't differentiate between mate and no move found.
-const KING_VALUE: i64 = i64::MAX - 1;
+const KING_VALUE: i64 = 99999;
 
 pub struct Evaluator {}
 

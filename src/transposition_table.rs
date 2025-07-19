@@ -2,7 +2,7 @@ use chess::{ChessMove, Color};
 use fnv::FnvHashMap;
 
 #[derive(Clone, Copy)]
-pub enum TTEntryFlag {
+pub enum TtEntryFlag {
     Exact,
     Beta,
     Alpha,
@@ -12,7 +12,7 @@ pub struct TranspositionTable {
     // Using a FnvHashMap should never overwrite any entries.
     // FIXME: when replacing for a more performant solution in the future, that fact needs to be
     // considered where ever entries are used!
-    pub entries: FnvHashMap<u64, TTEntry>,
+    pub entries: FnvHashMap<u64, TtEntry>,
 }
 
 impl TranspositionTable {
@@ -22,11 +22,15 @@ impl TranspositionTable {
         }
     }
 
-    pub fn get(&self, hash: u64) -> Option<&TTEntry> {
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+
+    pub fn get(&self, hash: u64) -> Option<&TtEntry> {
         self.entries.get(&hash)
     }
 
-    pub fn set(&mut self, hash: u64, entry: TTEntry) {
+    pub fn set(&mut self, hash: u64, entry: TtEntry) {
         // Depth replacement.
         if let Some(curr_entry) = self.entries.get(&hash) {
             if curr_entry.depth <= entry.depth {
@@ -39,9 +43,9 @@ impl TranspositionTable {
 }
 
 #[derive(Clone, Copy)]
-pub struct TTEntry {
+pub struct TtEntry {
     /// Type of entry
-    pub flag: TTEntryFlag,
+    pub flag: TtEntryFlag,
     /// What depth was the entry recorded at
     pub depth: u16,
     /// The move
@@ -52,15 +56,15 @@ pub struct TTEntry {
     value: i64,
 }
 
-impl TTEntry {
+impl TtEntry {
     pub fn new(
-        flag: TTEntryFlag,
+        flag: TtEntryFlag,
         depth: u16,
         mv: Option<ChessMove>,
         color: Color,
         value: i64,
     ) -> Self {
-        TTEntry {
+        TtEntry {
             flag,
             depth,
             mv,
@@ -79,10 +83,10 @@ impl TTEntry {
     }
 }
 
-impl Default for TTEntry {
+impl Default for TtEntry {
     fn default() -> Self {
         Self {
-            flag: TTEntryFlag::Exact,
+            flag: TtEntryFlag::Exact,
             depth: 0,
             mv: None,
             color: Color::White,

@@ -1,3 +1,9 @@
+# Rx7h+
+
+A chess engine project named after the last move of IBM Deep Blue in the first match 1996 against
+the then world champion Garry Kasparov, before he resigned. It marks the first time a computer beat
+a world champion at chess (remarkable).
+
 # Test Positions
 
 With advantage:
@@ -13,6 +19,11 @@ Pawn endgame:
 - 8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1
 
 # Knowledge
+
+## UCI
+
+- https://www.chessprogramming.org/UCI
+- https://wbec-ridderkerk.nl/html/UCIProtocol.html
 
 ## Transposition Table
 
@@ -44,6 +55,7 @@ Pawn endgame:
 
 # Spare Time TODOs
 
+- En-Crossaint report doesn't work with this bot
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning

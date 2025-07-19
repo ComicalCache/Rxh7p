@@ -1,22 +1,26 @@
 use chess::{BitBoard, Board, ChessMove, EMPTY, MoveGen, Square};
 
-use crate::{engine::Engine, evaluator::Evaluator, transposition_table::TTEntryFlag};
+use crate::{
+    evaluator::Evaluator,
+    transposition_table::{TranspositionTable, TtEntryFlag},
+};
 
 pub struct Sorter {}
 
 impl Sorter {
     pub fn all(
         board: &Board,
-        engine: &Engine,
         depth: u16,
-        prio_move: Option<ChessMove>,
+        tt: &TranspositionTable,
+        board_ply: u16,
+        search_ply: u16,
+        pv_move: Option<ChessMove>,
     ) -> Vec<ChessMove> {
         let mut moves = MoveGen::new_legal(board);
 
-        // +1 for priority move.
+        // +1 for principal variation move.
         let mut ret = Vec::with_capacity(moves.len() + 1);
 
-        // FIXME: Vec needed because otherwise multiple mutable references.
         moves.set_iterator_mask(Sorter::captures_mask(board));
         let captures = Sorter::see_sort_captures(board, Vec::from_iter(&mut moves));
 
@@ -27,15 +31,13 @@ impl Sorter {
         let mut remaining_moves = Vec::new();
 
         for mv in moves {
-            if let Some(entry) = engine
-                .tt
-                .get(board.make_move_new(mv).get_hash() + engine.board_ply + engine.search_ply)
-            {
+            let hash = board.make_move_new(mv).get_hash() + board_ply as u64 + search_ply as u64;
+            if let Some(entry) = tt.get(hash) {
                 match entry.flag {
                     // PV hash move at higher or equal depth.
-                    TTEntryFlag::Exact if entry.depth >= depth => pv_hash_moves.push(mv),
+                    TtEntryFlag::Exact if entry.depth >= depth => pv_hash_moves.push(mv),
                     // Killer move at higher or equal depth.
-                    TTEntryFlag::Beta if entry.depth >= depth => killer_moves.push(mv),
+                    TtEntryFlag::Beta if entry.depth >= depth => killer_moves.push(mv),
                     _ => remaining_moves.push(mv),
                 }
             } else {
@@ -43,8 +45,9 @@ impl Sorter {
             }
         }
 
-        // Search priority move. Could be doubly in list, second search can use hashed result.
-        if let Some(mv) = prio_move {
+        // Search principal variation move. Could be doubly in list, second search can use hashed
+        // result.
+        if let Some(mv) = pv_move {
             ret.push(mv);
         }
 
@@ -77,7 +80,9 @@ impl Sorter {
         let mut moves = MoveGen::new_legal(board);
         moves.set_iterator_mask(Sorter::captures_mask(board));
 
-        Sorter::see_sort_captures(board, Vec::from_iter(&mut moves)).map(|(_, capture)| capture)
+        Sorter::see_sort_captures(board, Vec::from_iter(&mut moves))
+            .into_iter()
+            .map(|(_, capture)| capture)
     }
 
     fn captures_mask(board: &Board) -> BitBoard {
@@ -92,10 +97,7 @@ impl Sorter {
         captures | en_passant
     }
 
-    fn see_sort_captures(
-        board: &Board,
-        captures: Vec<ChessMove>,
-    ) -> impl Iterator<Item = (i64, ChessMove)> {
+    fn see_sort_captures(board: &Board, captures: Vec<ChessMove>) -> Vec<(i64, ChessMove)> {
         let mut sorted = Vec::with_capacity(captures.len());
 
         for capture in &captures {
@@ -103,7 +105,7 @@ impl Sorter {
         }
         sorted.sort_by(|(eval_a, _), (eval_b, _)| eval_a.cmp(eval_b).reverse());
 
-        sorted.into_iter()
+        sorted
     }
 
     fn see_capture(board: &Board, capture: ChessMove) -> i64 {
@@ -134,7 +136,7 @@ impl Sorter {
         // It appears as if this is necessary since it's always a different position throughout
         // the recursion... :(
         let mut captures = MoveGen::new_legal(board);
-        // FIXME: excludes en-passant but shouldn't matter too much for now.
+        // FIXME: this excludes en-passant.
         captures.set_iterator_mask(Sorter::captures_mask(board) & BitBoard::from_square(square));
 
         let mut smallest_attack = None;
