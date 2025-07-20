@@ -144,7 +144,7 @@ impl Engine {
 
         // Drain position stack if there are now less moves than previously known moves. No minus
         // one because position stack contains initial position.
-        if self.position_stack.len() - 1 < moves_len {
+        if moves_len < self.position_stack.len() - 1 {
             self.position_stack.drain(moves_len..);
         }
         // Set new board to self.

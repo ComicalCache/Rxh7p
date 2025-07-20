@@ -2,6 +2,8 @@ use std::{str::FromStr, sync::mpsc::Sender, time::Duration};
 
 use chess::{Board, ChessMove};
 
+use crate::evaluator::Evaluator;
+
 pub struct GoCommandConfig {
     /// Only search moves in this list.
     pub searchmoves: Vec<ChessMove>,
@@ -258,8 +260,9 @@ impl Uci {
     pub fn search_info(depth: u16, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
         // FIXME: seldepth, nps, refutation, currline and score mate should be sent.
         let mut msg = format!(
-            "info depth {depth} time {} nodes {nodes} score cp {score_cp}",
-            time.as_millis()
+            "info depth {depth} time {} nodes {nodes} score cp {}",
+            time.as_millis(),
+            Evaluator::centi_pawns(score_cp)
         );
 
         if !pv.is_empty() {

@@ -10,6 +10,10 @@ const KING_VALUE: i64 = 99999;
 pub struct Evaluator {}
 
 impl Evaluator {
+    pub fn centi_pawns(score: i64) -> i64 {
+        score / PAWN_VALUE
+    }
+
     pub fn piece_value(piece: Piece) -> i64 {
         match piece {
             Piece::Pawn => PAWN_VALUE,
