@@ -66,6 +66,7 @@ impl Engine {
 
     /// Performs an iterative deepenign search on the internal state.
     fn iterative_deepening(&mut self) {
+        // Use predetermined moves for search if specified.
         let searchmoves = if self.search.moves.is_empty() {
             None
         } else {
@@ -75,25 +76,33 @@ impl Engine {
         // Always set start time even if no go movetime command was sent.
         self.search.start_time = SystemTime::now();
 
+        let mut eval = 0;
+
         for depth in 1.. {
             // i64::MIN + 1 to avoid overflow when negating the value.
-            if let Some(new_eval) =
-                self.negamax(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth)
-            {
-                self.message_tx
-                    .send(UciSenderMessage::SearchInfo(
-                        depth,
-                        SystemTime::now()
-                            .duration_since(self.search.start_time)
-                            .unwrap(),
-                        self.search.nodes,
-                        // FIXME: gather pv should not be done here on the hot path?
-                        self.pv(depth),
-                        new_eval,
-                    ))
-                    .expect("Failed to send message to UCI sender.");
-            } else {
-                // Search was cancelled.
+            let new_eval = self.negamax(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
+
+            if let Some(new_eval) = new_eval {
+                eval = new_eval;
+            }
+
+            // Send information of iteration.
+            let search_time = SystemTime::now()
+                .duration_since(self.search.start_time)
+                .unwrap();
+            self.message_tx
+                .send(UciSenderMessage::SearchInfo(
+                    depth,
+                    search_time,
+                    self.search.nodes,
+                    // FIXME: gather pv should not be done here on the hot path?
+                    self.pv(depth),
+                    eval,
+                ))
+                .expect("Failed to send message to UCI sender.");
+
+            // Search was cancelled.
+            if new_eval.is_none() {
                 break;
             }
         }
