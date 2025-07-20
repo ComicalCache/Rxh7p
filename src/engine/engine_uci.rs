@@ -31,39 +31,23 @@ impl Engine {
             return;
         }
 
+        // Initial position always exists.
+        if self.position_stack.len() > 1 {
+            self.position_stack.drain(1..);
+        }
+
+        // Apply all moves on the start board and add moves to the position stack.
         // Safe to unwrap as it was tested before.
-        let moves = moves.unwrap();
-        let moves_len = moves.len();
+        for mv in moves.unwrap() {
+            let new_board = board.make_move_new(mv);
 
-        // Apply all moves on the start board.
-        for (idx, mv) in moves.into_iter().enumerate() {
-            board = board.make_move_new(mv);
+            let irreversible = Engine::move_is_irreversible(&board, &new_board, mv);
+            self.position_stack.push((new_board, irreversible));
 
-            // Plus one since position 0 contains start board.
-            if let Some(position) = self.position_stack.get(idx + 1) {
-                // Position matches history, no action needed.
-                if board == position.0 {
-                    continue;
-                }
-
-                // Sent position deviates starting here. Clear vector to add all new positions.
-                self.position_stack.drain(idx + 1..);
-            }
-
-            // Add new moves to position stack. This implicitly handles the new latest moves even
-            // for an identical starting position since the position stack doesn't include them.
-            // Save to unwrap since always at least one position exists after initialization.
-            let irreversible =
-                Engine::move_is_irreversible(&self.position_stack.last().unwrap().0, &board, mv);
-            self.position_stack.push((board, irreversible));
+            board = new_board;
         }
 
-        // Drain position stack if there are now less moves than previously known moves. No minus
-        // one because position stack contains initial position.
-        if moves_len < self.position_stack.len() - 1 {
-            self.position_stack.drain(moves_len..);
-        }
-        // Set new board to self.
+        // Set board.
         self.board = board;
         // Set new ply. Minus one since initial position is on the stack.
         self.board_ply = (self.position_stack.len() - 1) as u16;
@@ -132,24 +116,12 @@ impl Engine {
             .expect("Failed to fetch board from TT")
             .mv;
 
-        // If the predicted move was wrong and the ponder search was cancelled, skip playing the
-        // move and adding to the position stack.
-        if !(self.search.stop_infinite && self.search.ponder) {
-            // Make best found move.
-            let new_board = self.board.make_move_new(best_move);
-
-            // Add move to position stack.
-            let irreversible = Engine::move_is_irreversible(&self.board, &new_board, best_move);
-            self.position_stack.push((new_board, irreversible));
-
-            // Make move persistent.
-            self.board = new_board;
-        }
+        let new_board = self.board.make_move_new(best_move);
 
         // Find moves to ponder on when playing best move.
         let ponder_moves = Orderer::all(
             // Safe to unwrap since previous iterative deepening search found a move.
-            &self.board,
+            &new_board,
             0,
             &self.tt,
             // Plus one since a move was played above.
