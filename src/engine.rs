@@ -124,6 +124,15 @@ impl Engine {
             self.search.ponder = false;
         }
 
+        if self.stop_rx.try_recv().is_ok() {
+            self.search.stop_infinite = true;
+        }
+
+        // Stop command (infinite search or ponder miss).
+        if self.search.stop_infinite {
+            return true;
+        }
+
         // Never stop in ponder mode.
         if self.search.ponder {
             return false;
@@ -150,12 +159,6 @@ impl Engine {
                 .unwrap()
                 > move_time
         {
-            return true;
-        }
-
-        // Infinite search.
-        if self.search.stop_infinite || self.stop_rx.try_recv().is_ok() {
-            self.search.stop_infinite = true;
             return true;
         }
 

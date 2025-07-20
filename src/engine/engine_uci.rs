@@ -124,36 +124,49 @@ impl Engine {
     }
 
     /// Performs necessary tasks after a performed search.
-    fn go_epilogue(&self) {
-        // Make best found move.
-        let new_board = self.board.make_move_new(
-            self.tt
-                .get(self.board.get_hash() + self.board_ply as u64)
-                .expect("Iterative deepening didn't find any move to make.")
-                .mv,
-        );
-
-        // Find moves to ponder on when playing best move.
-        let ponder_moves = Orderer::all(
-            // Safe to unwrap since previous iterative deepening search found a move.
-            &new_board,
-            0,
-            &self.tt,
-            // Plus one since a move was played above.
-            self.board_ply + 1,
-            self.search.ply,
-        );
-
+    fn go_epilogue(&mut self) {
+        // Find best move.
         let best_move = self
             .tt
             .get(self.board.get_hash() + self.board_ply as u64)
             .expect("Failed to fetch board from TT")
             .mv;
 
+        // If the predicted move was wrong and the ponder search was cancelled, skip playing the
+        // move and adding to the position stack.
+        if !(self.search.stop_infinite && self.search.ponder) {
+            // Make best found move.
+            let new_board = self.board.make_move_new(best_move);
+
+            // Add move to position stack.
+            let irreversible = Engine::move_is_irreversible(&self.board, &new_board, best_move);
+            self.position_stack.push((new_board, irreversible));
+
+            // Make move persistent.
+            self.board = new_board;
+        }
+
+        // Find moves to ponder on when playing best move.
+        let ponder_moves = Orderer::all(
+            // Safe to unwrap since previous iterative deepening search found a move.
+            &self.board,
+            0,
+            &self.tt,
+            // Plus one since a move was played above.
+            self.board_ply + 1,
+            self.search.ply,
+        );
+        let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
+
+        // Send reply over UCI.
         self.message_tx
             .send(UciSenderMessage::BestMove(
                 best_move,
-                Some(ponder_moves.into_iter().take(5).collect()),
+                if !ponder_moves.is_empty() {
+                    Some(ponder_moves)
+                } else {
+                    None
+                },
             ))
             .expect("Failed to send message to UCI sender.");
     }

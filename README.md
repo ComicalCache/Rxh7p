@@ -24,6 +24,12 @@ Pawn endgame:
 
 - https://www.chessprogramming.org/UCI
 - https://wbec-ridderkerk.nl/html/UCIProtocol.html
+- https://official-stockfish.github.io/docs/stockfish-wiki/UCI-&-Commands.html
+- https://github.com/official-stockfish/Stockfish/wiki/Terminology
+
+## Testing the engine
+
+- https://www.chessprogramming.org/Cutechess-cli
 
 ## Transposition Table
 
@@ -55,7 +61,7 @@ Pawn endgame:
 
 # Spare Time TODOs
 
-- En-Crossaint report doesn't work with this bot
+- https://www.chessprogramming.org/CLOP
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning
