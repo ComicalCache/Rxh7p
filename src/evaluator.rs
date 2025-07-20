@@ -5,15 +5,18 @@ const BISHOP_VALUE: i64 = 350;
 const KNIGHT_VALUE: i64 = 300;
 const ROOK_VALUE: i64 = 500;
 const QUEEN_VALUE: i64 = 900;
-const KING_VALUE: i64 = 99999;
+const KING_VALUE: i64 = 10000;
 
+/// Dummy struct used for namespacing of evaluation tasks.
 pub struct Evaluator {}
 
 impl Evaluator {
-    pub fn centi_pawns(score: i64) -> i64 {
-        score / PAWN_VALUE
+    /// Calculates the value in centi pawns.
+    pub fn centi_pawns(value: i64) -> i64 {
+        value / PAWN_VALUE
     }
 
+    /// Returns the value of a type of piece.
     pub fn piece_value(piece: Piece) -> i64 {
         match piece {
             Piece::Pawn => PAWN_VALUE,
@@ -25,6 +28,7 @@ impl Evaluator {
         }
     }
 
+    /// Evaluates the current board.
     pub fn evaluate(board: &Board) -> i64 {
         // Stalemate is neutral, being in checkmate is VERY bad.
         match board.status() {
@@ -65,6 +69,7 @@ impl Evaluator {
         own_value - opponent_value
     }
 
+    /// Counts the number of pieces of a color on the board.
     #[inline(always)]
     fn piece_count(board: &Board, piece: Piece, color: Color) -> i64 {
         (board.pieces(piece) & board.color_combined(color)).popcnt() as i64

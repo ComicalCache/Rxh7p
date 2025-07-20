@@ -6,31 +6,35 @@ use chess::Board;
 
 use crate::{
     engine::Engine,
-    uci::{Uci, UciCommand},
+    uci::{UciCommand, UciReceiver, UciSender, UciSenderMessage},
 };
 
+mod cache;
 mod engine;
 mod evaluator;
-mod sorter;
-mod transposition_table;
+mod order;
 mod uci;
 
 fn main() {
-    let (uci_tx, uci_rx) = mpsc::channel::<UciCommand>();
+    let (uci_receiver_tx, uci_receivre_rx) = mpsc::channel::<UciCommand>();
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
     let (ponderhit_tx, ponderhit_rx) = mpsc::channel::<()>();
-    let mut engine = Engine::new(stop_rx, ponderhit_rx);
+    let (uci_sender_tx, uci_sender_rx) = mpsc::channel::<UciSenderMessage>();
+    let mut engine = Engine::new(uci_sender_tx, stop_rx, ponderhit_rx);
 
-    let uci_thread = thread::spawn(|| {
-        Uci::new(uci_tx, stop_tx, ponderhit_tx).start();
+    let uci_receiver_thread = thread::spawn(|| {
+        UciReceiver::new(uci_receiver_tx, stop_tx, ponderhit_tx).start();
+    });
+    let uci_sender_thread = thread::spawn(|| {
+        UciSender::new(uci_sender_rx).start();
     });
 
     // No need to receive quit command as this loop stops when the tx value gets dropped.
-    while let Ok(command) = uci_rx.recv() {
+    while let Ok(command) = uci_receivre_rx.recv() {
         match command {
             UciCommand::Invalid => unreachable!("Received unreachable command"),
             UciCommand::Uci => unreachable!("Received uci command"),
-            UciCommand::IsReady => Uci::ok(),
+            UciCommand::IsReady => UciSender::ready_ok(),
             UciCommand::UciNewGame => engine.init(Board::default()),
             UciCommand::Position(board, moves) => engine.uci_position(board, moves),
             UciCommand::Go(config) => engine.go(config),
@@ -40,7 +44,15 @@ fn main() {
         }
     }
 
-    if let Err(err) = uci_thread.join() {
-        println!("Failed to join uci thread: {err:#?}");
+    if let Err(err) = uci_receiver_thread.join() {
+        println!("Failed to join uci receiver thread: {err:#?}");
+    }
+
+    // This drops the uci sender tx and thus stops the loop in UciSender::start, causing the thread
+    // to stop.
+    drop(engine);
+
+    if let Err(err) = uci_sender_thread.join() {
+        println!("Failed to join uci sender thread: {err:#?}");
     }
 }
