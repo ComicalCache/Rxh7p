@@ -1,7 +1,3 @@
-mod engine_repetition;
-mod engine_uci;
-mod search;
-
 use std::{
     cmp::max,
     sync::mpsc::{Receiver, Sender},
@@ -11,36 +7,36 @@ use std::{
 use chess::{Board, BoardStatus, ChessMove};
 
 use crate::{
-    cache::{TT, TtEntry, TtEntryFlag},
     engine::search::Search,
     evaluator::Evaluator,
-    order::Orderer,
+    orderer::Orderer,
+    tt::{TT, TtEntry, TtEntryFlag},
     uci::UciSenderMessage,
 };
 
 /// The chess engine itself, it performs the search and data keeping.
 pub struct Engine {
     /// Internal board.
-    pub board: Board,
+    pub(super) board: Board,
     /// Transposition table.
-    pub tt: TT,
+    pub(super) tt: TT,
 
     /// Stack of played positions to detect threefold repetitions.
-    position_stack: Vec<(Board, bool)>,
+    pub(super) position_stack: Vec<(Board, bool)>,
 
     // TODO: 50 move rule.
     /// Ply of played moves. Needed to access previously computed TT entries in next search.
-    pub board_ply: u16,
+    pub(super) board_ply: u16,
 
     /// Information about the current search.
-    search: Search,
+    pub(super) search: Search,
 
     /// UCI sender. Sends messages to UCI on our behalf to avoid exepnsive stdio on hot path.
-    message_tx: Sender<UciSenderMessage>,
+    pub(super) message_tx: Sender<UciSenderMessage>,
     /// Stop receiver. Receives if a stop command was sent.
-    stop_rx: Receiver<()>,
+    pub(super) stop_rx: Receiver<()>,
     /// Ponder receiver. Receives if a ponderhit command was sent.
-    ponderhit_rx: Receiver<()>,
+    pub(super) ponderhit_rx: Receiver<()>,
 }
 
 impl Engine {
@@ -65,7 +61,7 @@ impl Engine {
     }
 
     /// Performs an iterative deepenign search on the internal state.
-    fn iterative_deepening(&mut self) {
+    pub(super) fn iterative_deepening(&mut self) {
         // Use predetermined moves for search if specified.
         let searchmoves = if self.search.moves.is_empty() {
             None
@@ -82,24 +78,32 @@ impl Engine {
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.negamax(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
+            // Only set the PV search depth to the current depth and eval to new_eval if the search
+            // was not interrupted.
+            let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
                 eval = new_eval;
+                pv_depth = depth;
             }
 
-            // Send information of iteration.
-            let search_time = SystemTime::now()
-                .duration_since(self.search.start_time)
-                .unwrap();
-            self.message_tx
-                .send(UciSenderMessage::SearchInfo(
-                    depth,
-                    search_time,
-                    self.search.nodes,
-                    // FIXME: gather pv should not be done here on the hot path?
-                    self.pv(depth),
-                    eval,
-                ))
-                .expect("Failed to send message to UCI sender.");
+            // Send information of iteration but skip first four iterations to decrease traffic.
+            // Don't skip if search is cancelled before the fith iteration.
+            if depth > 4 || new_eval.is_none() {
+                let search_time = SystemTime::now()
+                    .duration_since(self.search.start_time)
+                    .unwrap();
+
+                self.message_tx
+                    .send(UciSenderMessage::SearchInfo(
+                        depth,
+                        search_time,
+                        self.search.nodes,
+                        // FIXME: gather pv should not be done here on the hot path?
+                        self.pv(pv_depth),
+                        eval,
+                    ))
+                    .expect("Failed to send message to UCI sender.");
+            }
 
             // Search was cancelled.
             if new_eval.is_none() {
@@ -112,7 +116,9 @@ impl Engine {
     fn pv(&self, depth: u16) -> Vec<ChessMove> {
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
+
         let mut idx = 0;
+        // Traverse the TT until the searched depth and gather the PV.
         while let Some(entry) = self
             .tt
             .get(temp_board.get_hash() + self.board_ply as u64 + idx)
@@ -129,15 +135,17 @@ impl Engine {
 
     /// Checks if a stop condition for search is fulfilled.
     fn stop_negamax(&mut self) -> bool {
+        // Received ponderhit command.
         if self.ponderhit_rx.try_recv().is_ok() {
             self.search.ponder = false;
         }
 
+        // Received stop command.
         if self.stop_rx.try_recv().is_ok() {
             self.search.stop_infinite = true;
         }
 
-        // Stop command (infinite search or ponder miss).
+        // Stop command (infinite search, quit or ponder miss).
         if self.search.stop_infinite {
             return true;
         }
@@ -222,18 +230,18 @@ impl Engine {
             }
         }
 
-        // Search all ordered moves doing alpha-beta pruning.
-        let mut max_eval = i64::MIN + 1;
-        let mut best_mv = None;
-
+        // Use moves given by UCI or search all available (ordered) moves.
         let moves = if let Some(searchmoves) = searchmoves {
             searchmoves
         } else {
             &Orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
         };
 
+        let mut max_eval = i64::MIN + 1;
+        let mut best_mv = None;
         let mut move_number = 1;
         for mv in moves {
+            // Send current searching move for the top level of the search.
             if self.search.ply == 0 {
                 self.message_tx
                     .send(UciSenderMessage::CurrMoveInfo(*mv, move_number))
@@ -276,7 +284,7 @@ impl Engine {
                     break;
                 }
             } else {
-                // If negamax returns None, time was up, return up the chain.
+                // If negamax returns None, search was cancelled, return up the chain.
                 return None;
             }
         }

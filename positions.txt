@@ -1,0 +1,8 @@
+White advantage:
+3qkb1r/r2npppp/b2p1n2/pBp5/4P3/2NP1N2/PPPB1PPP/R2Q1RK1 w k - 3 9
+
+Threefold repetition:
+8/r3bp2/4k1p1/P7/P2QP2P/3P1P1P/5R2/4B1K1 w - - 6 35
+
+Endgames:
+8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1

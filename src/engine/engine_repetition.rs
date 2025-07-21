@@ -10,12 +10,13 @@ impl Engine {
             return false;
         }
 
-        // Save to unwrap since at least 8 moves have been played.
+        // Save to unwrap since at least eight moves have been played.
         let target_hash = self.position_stack.last().unwrap().0.get_hash();
         let mut repetitions = 1;
 
         let len = self.position_stack.len();
         for idx in (0..len - 1).rev() {
+            // Don't search past irreversible moves.
             if self.position_stack[idx].1 {
                 break;
             }

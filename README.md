@@ -4,62 +4,83 @@ A chess engine project named after the last move of IBM Deep Blue in the first m
 the then world champion Garry Kasparov, before he resigned. It marks the first time a computer beat
 a world champion at chess (remarkable).
 
-# Test Positions
+The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess.
 
-With advantage:
+# Bibliography
 
-- 3qkb1r/r2npppp/b2p1n2/pBp5/4P3/2NP1N2/PPPB1PPP/R2Q1RK1 w k - 3 9
+Pieces of knowledge interesting to anyone reading, myself included.
 
-Threefold repetition:
+### UCI
 
-- 8/r3bp2/4k1p1/P7/P2QP2P/3P1P1P/5R2/4B1K1 w - - 6 35
-
-Pawn endgame:
-
-- 8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1
-
-# Knowledge
-
-## UCI
+<details>
 
 - https://www.chessprogramming.org/UCI
 - https://wbec-ridderkerk.nl/html/UCIProtocol.html
 - https://official-stockfish.github.io/docs/stockfish-wiki/UCI-&-Commands.html
 - https://github.com/official-stockfish/Stockfish/wiki/Terminology
 
-## Testing the engine
+</details>
+
+### Testing the engine
+
+<details>
 
 - https://www.chessprogramming.org/Cutechess-cli
 
-## Transposition Table
+</details>
+
+### Transposition Table
+
+<details>
 
 - https://mediocrechess.blogspot.com/2007/01/guide-transposition-tables.html
 - https://en.wikipedia.org/wiki/Negamax#Negamax_with_alpha_beta_pruning_and_transposition_tables
 - https://www.chessprogramming.org/Principal_Variation
 
-## Alpha-Beta-Pruning
+</details>
+
+### Alpha-Beta-Pruning
+
+<details>
 
 - https://www.chessprogramming.org/Alpha-Beta#Negamax_Framework
 - https://www.chessprogramming.org/Transposition_Table
 - https://www.chessprogramming.org/Iterative_Deepening
 
-## Quiescence Search
+</details>
+
+### Quiescence Search
+
+<details>
 
 - https://www.chessprogramming.org/Quiescence_Search
 - https://www.chessprogramming.org/Horizon_Effect
 
-## Repetition
+</details>
+
+### Repetition
+
+<details>
 
 - https://www.chessprogramming.org/Irreversible_Moves
 - https://www.chessprogramming.org/Repetitions
 - https://en.wikipedia.org/wiki/Threefold_repetition
 
-## Move Ordering
+</details>
+
+### Move Ordering
+
+<details>
 
 - https://www.chessprogramming.org/MVV-LVA
 - https://www.chessprogramming.org/Static_Exchange_Evaluation
 
-# Spare Time TODOs
+</details>
+<br>
+
+# TODO
+
+<details>
 
 - https://www.chessprogramming.org/CLOP
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
@@ -114,3 +135,5 @@ Pawn endgame:
 - https://www.chessprogramming.org/Stockfish#Classical_Evaluation (!!!)
 - https://www.chessprogramming.org/CPW-Engine_eval
 - https://www.chessprogramming.org/Aspiration_Windows
+
+</details>

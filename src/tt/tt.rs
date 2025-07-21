@@ -1,13 +1,13 @@
 use fnv::FnvHashMap;
 
-use crate::cache::tt_entry::TtEntry;
+use crate::tt::tt_entry::TtEntry;
 
 /// A transposition table storing previously evaluated moves.
 pub struct TT {
     // Using a FnvHashMap should never overwrite any entries.
     // FIXME: when replacing for a more performant solution in the future, that fact needs to be
     // considered where ever entries are used!
-    pub entries: FnvHashMap<u64, TtEntry>,
+    entries: FnvHashMap<u64, TtEntry>,
 }
 
 impl TT {

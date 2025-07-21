@@ -3,8 +3,8 @@ use std::collections::BinaryHeap;
 use chess::{Board, ChessMove, EMPTY, MoveGen};
 
 use crate::{
-    cache::{TT, TtEntryFlag},
-    order::orderer_entry::OrdererEntry,
+    orderer::orderer_entry::OrdererEntry,
+    tt::{TT, TtEntryFlag},
 };
 
 /// Dummy struct used for namespacing of move ordering related tasks.
@@ -30,6 +30,7 @@ impl Orderer {
         // +1 for principal variation move.
         let mut ret = Vec::with_capacity(moves.len() + 1);
 
+        // Get all captures and order them.
         moves.set_iterator_mask(Orderer::captures_mask(board));
         let captures = Orderer::see_order_captures(board, Vec::from_iter(&mut moves));
 
@@ -58,7 +59,7 @@ impl Orderer {
             }
         }
 
-        // Search principal variation move. Could be doubly in list, second search can use hashed
+        // Search principal variation move. Will be doubly in list, second search uses the hashed
         // result.
         if let Some(entry) = tt.get(board.get_hash() + board_ply as u64 + search_ply as u64) {
             ret.push(entry.mv);

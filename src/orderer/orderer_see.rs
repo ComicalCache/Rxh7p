@@ -4,7 +4,7 @@ use chess::{BitBoard, Board, ChessMove, MoveGen, Square};
 
 use crate::{
     evaluator::Evaluator,
-    order::{Orderer, orderer_entry::OrdererEntry},
+    orderer::{Orderer, orderer_entry::OrdererEntry},
 };
 
 impl Orderer {

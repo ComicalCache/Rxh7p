@@ -1,7 +1,6 @@
 use chess::{ChessMove, Color};
 
 /// Type of a TT entry.
-#[derive(Clone, Copy)]
 pub enum TtEntryFlag {
     /// Inside the search window.
     Exact,
@@ -12,7 +11,6 @@ pub enum TtEntryFlag {
 }
 
 /// A TT entry contianing information about its type, found depth, move, color and value.
-#[derive(Clone, Copy)]
 pub struct TtEntry {
     /// Type of entry.
     pub flag: TtEntryFlag,

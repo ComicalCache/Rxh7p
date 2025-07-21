@@ -3,8 +3,8 @@ use std::time::Duration;
 use chess::{Board, ChessMove, Color};
 
 use crate::{
-    engine::{Engine, Search},
-    order::Orderer,
+    engine::{Engine, search::Search},
+    orderer::Orderer,
     uci::{GoCommandConfig, UciSenderMessage},
 };
 
@@ -13,7 +13,8 @@ impl Engine {
     pub fn init(&mut self, board: Board) {
         self.board = board;
         self.tt.clear();
-        self.position_stack = vec![(board, true)];
+        self.position_stack.clear();
+        self.position_stack.push((board, true));
         self.board_ply = 0;
         self.search = Search::default();
     }
@@ -31,7 +32,7 @@ impl Engine {
             return;
         }
 
-        // Initial position always exists.
+        // Initial position always exists. Remove all remaining elements of the vector.
         if self.position_stack.len() > 1 {
             self.position_stack.drain(1..);
         }
@@ -68,7 +69,7 @@ impl Engine {
         while self.stop_rx.try_recv().is_ok() {}
         while self.ponderhit_rx.try_recv().is_ok() {}
 
-        // Set search move settings.
+        // Set moves to search.
         self.search.moves = config.searchmoves;
 
         // Set time appropriately to player clocks.
@@ -97,11 +98,12 @@ impl Engine {
                     self.search.move_time = Some(time);
                 }
             } else {
-                // No time yet yet.
+                // No time set yet.
                 self.search.move_time = Some(time);
             }
         }
 
+        // Set remaining parameters.
         self.search.node_limit = config.nodes;
         self.search.depth = config.depth;
         self.search.ponder = config.ponder;
@@ -118,9 +120,8 @@ impl Engine {
 
         let new_board = self.board.make_move_new(best_move);
 
-        // Find moves to ponder on when playing best move.
+        // Find moves to ponder on after playing best move.
         let ponder_moves = Orderer::all(
-            // Safe to unwrap since previous iterative deepening search found a move.
             &new_board,
             0,
             &self.tt,
@@ -128,6 +129,7 @@ impl Engine {
             self.board_ply + 1,
             self.search.ply,
         );
+        // Give a selection of five moves to ponder on.
         let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
 
         // Send reply over UCI.

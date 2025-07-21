@@ -55,9 +55,14 @@ impl UciReceiver {
                     .ponderhit_tx
                     .send(())
                     .expect("Failed to send ponderhit message to engine"),
-                // No need to send quit command, loop in main quits when this loop ends since the
-                // tx value gets dropped.
-                UciCommand::Quit => break,
+                // Send stop in case the engine is searching. The loop in main quits when this loop
+                // ends since the tx value gets dropped.
+                UciCommand::Quit => {
+                    self.stop_tx
+                        .send(())
+                        .expect("Failed to send stop message to engine");
+                    break;
+                }
                 _ => send(command),
             }
         }
