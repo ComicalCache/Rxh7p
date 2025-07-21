@@ -1,0 +1,133 @@
+token: "TOKEN"
+url: "https://lichess.org/"
+
+engine:
+  dir: "./engines/"
+  name: "Rxh7p"
+  protocol: "uci"
+  ponder: true
+
+  polyglot:
+    enabled: false
+
+  draw_or_resign:
+    resign_enabled: true
+    resign_score: -1000
+    resign_for_egtb_minus_two: true
+    resign_moves: 5
+    offer_draw_enabled: true
+    offer_draw_score: 0
+    offer_draw_for_egtb_zero: true
+    offer_draw_moves: 7
+    offer_draw_pieces: 10
+
+  online_moves:
+    max_out_of_book_moves: 6
+    max_retries: 2
+    max_depth: 15
+    chessdb_book:
+      enabled: false
+    lichess_cloud_analysis:
+      enabled: false
+    lichess_opening_explorer:
+      enabled: true
+      min_time: 30
+      max_time: 10800
+      source: "lichess"
+      sort: "winrate"
+      min_games: 10
+      move_quality: "best"
+    online_egtb:
+      enabled: true
+      min_time: 15
+      max_time: 10800
+      max_pieces: 7
+      source: "lichess"
+      move_quality: "best"
+
+  lichess_bot_tbs:
+    syzygy:
+      enabled: false
+    gaviota:
+      enabled: false
+
+  engine_options:
+  #   cpuct: 3.1
+
+  uci_options:
+  #  Threads: 4
+  #  Hash: 512 # Max memory (in megabytes)
+  #  SyzygyPath: "./syzygy/"
+  #  UCI_ShowWDL: true # Show the chance of the engine winning.
+  #  go_commands:
+  #    nodes: 1
+  #    depth: 5
+  #    movetime: 500
+
+  silence_stderr: false
+
+abort_time: 60
+fake_think_time: false
+rate_limiting_delay: 100
+move_overhead: 1000
+max_takebacks_accepted: 3
+quit_after_all_games_finish: false
+
+challenge:
+  concurrency: 5
+  sort_by: "best"
+  preference: "none"
+  accept_bot: true
+  only_bot: false
+  max_increment: 60
+  min_increment: 0
+  max_base: 3600
+  min_base: 0
+  variants:
+    - standard
+    - fromPosition
+  time_controls:
+    - bullet
+    - blitz
+    - rapid
+    - classical
+  modes:
+    - casual
+    - rated
+  block_list:
+  online_block_list:
+  allow_list:
+  recent_bot_challenge_age: 30
+  max_recent_bot_challenges: 4
+  bullet_requires_increment: false
+  max_simultaneous_games_per_user: 3
+
+greeting:
+  hello: "Hi! I'm {me}. I give you the option to take back a move three times! Good luck! Type !help for a list of commands I can respond to."
+  goodbye: "Good game! Well played."
+  hello_spectators: "Hi! I'm {me}. Type !help for a list of commands I can respond to."
+  goodbye_spectators: "Thanks for watching! I'm here all week."
+
+pgn_directory: "game_records"
+pgn_file_grouping: "game"
+
+matchmaking:
+  allow_matchmaking: true
+  allow_during_games: true
+  challenge_variant: "random"
+  challenge_timeout: 1
+  challenge_initial_time:
+    - 15
+    - 30
+    - 60
+    - 180
+  challenge_increment:
+    - 0
+    - 1
+    - 2
+  rating_preference: "none"
+  challenge_mode: "random"
+  challenge_filter: "fine"
+  block_list:
+  online_block_list:
+  include_challenge_block_list: false

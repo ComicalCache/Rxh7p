@@ -1,14 +1,16 @@
 # Rx7h+
 
-A chess engine project named after the last move of IBM Deep Blue in the first match 1996 against
-the then world champion Garry Kasparov, before he resigned. It marks the first time a computer beat
-a world champion at chess (remarkable).
+A chess engine project named after the last move of IBM Deep Blue in the first match 1996 against the then world champion Garry Kasparov, before he resigned. It marks the first time a computer beat a world champion at chess (remarkable).
 
-The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess.
+The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess. For Lichess an appropriate preconfigured config.yml is provided.
 
 # Bibliography
 
 Pieces of knowledge interesting to anyone reading, myself included.
+
+### Lichess
+
+- https://github.com/lichess-bot-devs/lichess-bot/wiki/Configure-lichess-bot
 
 ### UCI
 
