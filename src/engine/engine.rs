@@ -236,21 +236,10 @@ impl Engine {
             &orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
         };
 
-        //let mut move_number = 1;
         let mut first_search = true;
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
         for mv in moves {
-            // Send current searching move for the top level of the search.
-            /*
-            if self.search.ply == 0 {
-                self.message_tx
-                    .send(UciSenderMessage::CurrMoveInfo(*mv, move_number))
-                    .expect("Failed to send message to UCI sender.");
-                move_number += 1;
-            }
-            */
-
             let new_board = board.make_move_new(*mv);
 
             // Add new position to and increment search ply.

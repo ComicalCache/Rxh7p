@@ -18,7 +18,7 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
     let mut moves = MoveGen::new_legal(board);
 
     // Plus one for principal variation move.
-    let mut ret = Vec::with_capacity(moves.len());
+    let mut ret = Vec::with_capacity(moves.len() + 1);
 
     // Get all captures and order them.
     moves.set_iterator_mask(orderer_masks::captures_mask(board));
@@ -47,6 +47,12 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
         } else {
             remaining_moves.push(mv);
         }
+    }
+
+    // Search principal variation move. Will be doubly in list, second search uses the hashed
+    // result.
+    if let Some(entry) = tt.get(board.get_hash() + board_ply as u64 + search_ply as u64) {
+        ret.push(entry.mv);
     }
 
     // Search PV hash moves.

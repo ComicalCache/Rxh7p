@@ -8,8 +8,6 @@ pub enum UciSenderMessage {
     BestMove(ChessMove, Option<Vec<ChessMove>>),
     /// General info message.
     SearchInfo(u16, Duration, u64, Vec<ChessMove>, i64),
-    /// Current move specific info message.
-    CurrMoveInfo(ChessMove, u64),
 }
 
 /// Struct acting as a UCI sender. It runs in its own thread and communicates with the engine via
@@ -34,9 +32,6 @@ impl UciSender {
                 }
                 UciSenderMessage::SearchInfo(depth, time, nodes, pv, score_cp) => {
                     UciSender::search_info(depth, time, nodes, pv, score_cp)
-                }
-                UciSenderMessage::CurrMoveInfo(curr_move, curr_move_number) => {
-                    UciSender::curr_move_info(curr_move, curr_move_number)
                 }
             }
         }
@@ -70,9 +65,10 @@ impl UciSender {
 
     /// General info message.
     fn search_info(depth: u16, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
-        // FIXME: seldepth, nps, refutation, currline and score mate should be sent.
+        // FIXME: seldepth, refutation, currline and score mate should be sent.
         let mut msg = format!(
-            "info depth {depth} time {} nodes {nodes} score cp {score_cp}",
+            "info depth {depth} time {} nodes {nodes} nps {} score cp {score_cp}",
+            nodes / time.as_secs(),
             time.as_millis(),
         );
 
@@ -85,10 +81,5 @@ impl UciSender {
         }
 
         println!("{msg}");
-    }
-
-    /// Current move specific info message.
-    fn curr_move_info(curr_move: ChessMove, curr_move_number: u64) {
-        println!("info currmove {curr_move} currmovenumber {curr_move_number}");
     }
 }
