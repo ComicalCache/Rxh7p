@@ -10,12 +10,12 @@ Benchmarking can be done using cutechess-cli.
 
 ```sh
 cutechess-cli
-  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings order=random policy=round plies=8 -concurrency 8 -ratinginterval 2 -rounds 300 -games 2 -each tc=10+0.1 ponder -recover -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
+  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings order=random policy=round plies=8 -concurrency 8 -ratinginterval 2 -rounds 300 -games 2 -each tc=10+0.1 ponder -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
 ```
 
 Explaination:
 
-- `-openings file=openings order=random policy=round plies=8`: play a random starting position for eight plies from the opening book and swap each round.
+- `-openings file=openings order=random policy=round plies=14`: play a random starting position for 14 plies from the opening book and swap each round.
 - `-concurrency 8`: play eight games in parallel.
 - `-ratinginterval 2`: print the rating every two finished games.
 - `-rounds 300`: play for 300 rounds each two games.
@@ -23,7 +23,6 @@ Explaination:
 - `-each`: apply the following settings to both engines.
 - `tc=10+0.1`: play 10+0.1s.
 - `ponder`: allow engines to ponder during opponent moves.
-- `-recover`: attempt to restart engines on crash instead of forfeiting the match.
 - `sprt elo0=0 elo1=150 alpha=0.05 beta=0.05`: sequential probability ratio test. Hypthoesis H1 is that engine A is stronger than engine B by at least elo0, hypthesis H0 is that engine A is not stronger than B by at least elo1. If either H0 or H1 are fulfilled with error in alpha and beta the match is stopped.
 
 # Bibliography
@@ -78,6 +77,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Iterative_Deepening
 - https://www.chessprogramming.org/Principal_Variation_Search
 - https://www.chessprogramming.org/Null_Window
+- https://en.wikipedia.org/wiki/Principal_variation_search
 
 </details>
 
