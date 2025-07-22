@@ -10,15 +10,16 @@ Benchmarking can be done using cutechess-cli.
 
 ```sh
 cutechess-cli
-  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings -concurrency 8 -ratinginterval 2 -games 500 -repeat -each tc=10+0.1 ponder -recover -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
+  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings order=random policy=round plies=8 -concurrency 8 -ratinginterval 2 -rounds 300 -games 2 -each tc=10+0.1 ponder -recover -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
 ```
 
 Explaination:
 
-- `-openings file=openings`: play starting positions from the opening book.
+- `-openings file=openings order=random policy=round plies=8`: play a random starting position for eight plies from the opening book and swap each round.
 - `-concurrency 8`: play eight games in parallel.
 - `-ratinginterval 2`: print the rating every two finished games.
-- `-games 500`: play for 500 games.
+- `-rounds 300`: play for 300 rounds each two games.
+- `-games 2`: play for 300 rounds each two games.
 - `-each`: apply the following settings to both engines.
 - `tc=10+0.1`: play 10+0.1s.
 - `ponder`: allow engines to ponder during opponent moves.
@@ -75,6 +76,8 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Alpha-Beta#Negamax_Framework
 - https://www.chessprogramming.org/Transposition_Table
 - https://www.chessprogramming.org/Iterative_Deepening
+- https://www.chessprogramming.org/Principal_Variation_Search
+- https://www.chessprogramming.org/Null_Window
 
 </details>
 
@@ -124,12 +127,13 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Triangular_PV-Table
-- https://www.chessprogramming.org/Principal_Variation_Search
 
+- https://www.chessprogramming.org/Lazy_Evaluation
 - https://zwischenzug.substack.com/p/centipawns-suck
 - https://www.chessprogramming.org/History_Leaf_Pruning
 - https://www.chessprogramming.org/Late_Move_Reductions
 - https://www.chessprogramming.org/History_Heuristic
+- https://www.chessprogramming.org/Null_Move_Pruning
 - Implement endgame tablebases
 - https://www.chessprogramming.org/CLOP
 - https://www.chessprogramming.org/Lazy_SMP

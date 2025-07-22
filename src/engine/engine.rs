@@ -75,7 +75,7 @@ impl Engine {
 
         for depth in 1.. {
             // i64::MIN + 1 to avoid overflow when negating the value.
-            let new_eval = self.negamax(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
+            let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
             // Only set the PV search depth to the current depth and eval to new_eval if the search
             // was not interrupted.
@@ -133,7 +133,7 @@ impl Engine {
     }
 
     /// Checks if a stop condition for search is fulfilled.
-    fn stop_negamax(&mut self) -> bool {
+    fn stop_search(&mut self) -> bool {
         // Received ponderhit command.
         if self.ponderhit_rx.try_recv().is_ok() {
             self.search.ponder = false;
@@ -181,8 +181,8 @@ impl Engine {
         false
     }
 
-    /// Performs a negamax search on a given board.
-    fn negamax(
+    /// Performs a PVS search on a given board.
+    fn pvs(
         &mut self,
         board: Board,
         searchmoves: &Option<Vec<ChessMove>>,
@@ -190,7 +190,7 @@ impl Engine {
         beta: i64,
         depth: u16,
     ) -> Option<i64> {
-        if self.stop_negamax() {
+        if self.stop_search() {
             return None;
         }
 
@@ -236,9 +236,10 @@ impl Engine {
             &orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
         };
 
+        let mut move_number = 1;
+        let mut first_search = true;
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
-        let mut move_number = 1;
         for mv in moves {
             // Send current searching move for the top level of the search.
             if self.search.ply == 0 {
@@ -260,8 +261,23 @@ impl Engine {
             self.position_stack.push((new_board, irreversible));
             self.search.ply += 1;
 
-            // Evaluate new position.
-            let new_eval = self.negamax(new_board, &None, -beta, -alpha, depth - 1);
+            let mut new_eval;
+            if first_search {
+                // Evaluate new position fully if first search.
+                new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                first_search = false;
+            } else {
+                // Perform null-window search on following searches.
+                new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
+
+                // If the null-window search failed high, repeat with a full search.
+                // Inverse result due to symmetry.
+                if let Some(eval) = new_eval
+                    && -eval > alpha
+                {
+                    new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                }
+            }
 
             // Pop new position from the stack and decrement search ply.
             self.position_stack.pop();
@@ -283,7 +299,7 @@ impl Engine {
                     break;
                 }
             } else {
-                // If negamax returns None, search was cancelled, return up the chain.
+                // If pvs returns None, search was cancelled, return up the chain.
                 return None;
             }
         }
@@ -297,7 +313,7 @@ impl Engine {
         let tt_entry = TtEntry::new(
             flag,
             depth,
-            best_mv.expect("Negamax didn't find any move to make."),
+            best_mv.expect("PVS didn't find any move to make."),
             side,
             max_eval,
         );
