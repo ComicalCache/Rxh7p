@@ -12,6 +12,11 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 - https://github.com/lichess-bot-devs/lichess-bot/wiki/Configure-lichess-bot
 
+### Endgame tables
+
+- https://www.talkchess.com/forum/viewtopic.php?t=25311
+- https://www.talkchess.com/forum3/viewtopic.php?t=47681
+
 ### UCI
 
 <details>
@@ -78,14 +83,30 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Static_Exchange_Evaluation
 
 </details>
+
+<details>
+
+### Evaluation
+
+- https://www.chessprogramming.org/Simplified_Evaluation_Function
+
+</details>
 <br>
 
 # TODO
 
 <details>
 
-- https://www.chessprogramming.org/CLOP
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
+- https://www.chessprogramming.org/Triangular_PV-Table
+- https://www.chessprogramming.org/Principal_Variation_Search
+
+- https://zwischenzug.substack.com/p/centipawns-suck
+- https://www.chessprogramming.org/History_Leaf_Pruning
+- https://www.chessprogramming.org/Late_Move_Reductions
+- https://www.chessprogramming.org/History_Heuristic
+- Implement endgame tablebases
+- https://www.chessprogramming.org/CLOP
 - https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Futility_Pruning
