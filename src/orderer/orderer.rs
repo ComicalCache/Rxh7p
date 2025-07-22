@@ -14,7 +14,7 @@ use crate::{
 /// 4. Killer moves.
 /// 5. Bad captures.
 /// 6. Remaining moves (random order).
-pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) -> Vec<ChessMove> {
+pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
     let mut moves = MoveGen::new_legal(board);
 
     // Plus one for principal variation move.
@@ -32,7 +32,7 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
 
     for mv in moves {
         // Plus one since the move has been made and is one ply further down.
-        if let Some(entry) = tt.get(board.make_move_new(mv).get_hash() + board_ply as u64 + 1) {
+        if let Some(entry) = tt.get(board.make_move_new(mv).get_hash()) {
             match entry.flag {
                 // PV move at higher or equal depth.
                 TtEntryFlag::Exact if entry.depth >= depth => {
@@ -51,7 +51,7 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
 
     // Search principal variation move. Will be doubly in list, second search uses the hashed
     // result.
-    if let Some(entry) = tt.get(board.get_hash() + board_ply as u64) {
+    if let Some(entry) = tt.get(board.get_hash()) {
         ret.push(entry.mv);
     }
 

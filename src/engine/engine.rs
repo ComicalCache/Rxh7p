@@ -24,9 +24,6 @@ pub struct Engine {
     pub(super) position_stack: Vec<(Board, bool)>,
 
     // TODO: 50 move rule.
-    /// Ply of played moves. Needed to access previously computed TT entries in next search.
-    pub(super) board_ply: u16,
-
     /// Information about the current search.
     pub(super) search: Search,
 
@@ -51,7 +48,6 @@ impl Engine {
             board,
             tt: TT::new(),
             position_stack: vec![(board, true)],
-            board_ply: 0,
             search: Search::default(),
             message_tx,
             stop_rx,
@@ -118,9 +114,7 @@ impl Engine {
 
         let mut idx = 0;
         // Traverse the TT until the searched depth and gather the PV.
-        while let Some(entry) = self
-            .tt
-            .get(temp_board.get_hash() + self.board_ply as u64 + idx)
+        while let Some(entry) = self.tt.get(temp_board.get_hash())
             && idx < depth as u64
         {
             pv.push(entry.mv);
@@ -213,7 +207,7 @@ impl Engine {
         }
 
         let prev_alpha = alpha;
-        let hash = board.get_hash() + self.board_ply as u64 + self.search.ply as u64;
+        let hash = board.get_hash();
         let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
@@ -233,7 +227,7 @@ impl Engine {
         let moves = if let Some(searchmoves) = searchmoves {
             searchmoves
         } else {
-            &orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
+            &orderer::all(&board, depth, &self.tt)
         };
 
         let mut first_search = true;
@@ -261,7 +255,6 @@ impl Engine {
                 // Inverse result due to symmetry.
                 if let Some(eval) = new_eval
                     && -eval > alpha
-                    && -eval < beta
                 {
                     new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
                 }

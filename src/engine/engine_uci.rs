@@ -15,7 +15,6 @@ impl Engine {
         self.tt.clear();
         self.position_stack.clear();
         self.position_stack.push((board, true));
-        self.board_ply = 0;
         self.search = Search::default();
     }
 
@@ -50,8 +49,6 @@ impl Engine {
 
         // Set board.
         self.board = board;
-        // Set new ply. Minus one since initial position is on the stack.
-        self.board_ply = (self.position_stack.len() - 1) as u16;
     }
 
     /// Performes a received UCI go command search.
@@ -114,21 +111,14 @@ impl Engine {
         // Find best move.
         let best_move = self
             .tt
-            .get(self.board.get_hash() + self.board_ply as u64)
+            .get(self.board.get_hash())
             .expect("Failed to fetch board from TT")
             .mv;
 
         let new_board = self.board.make_move_new(best_move);
 
         // Find moves to ponder on after playing best move.
-        let ponder_moves = orderer::all(
-            &new_board,
-            0,
-            &self.tt,
-            // Plus one since a move was played above.
-            self.board_ply + 1,
-            self.search.ply,
-        );
+        let ponder_moves = orderer::all(&new_board, 0, &self.tt);
         // Give a selection of five moves to ponder on.
         let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
 
