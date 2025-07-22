@@ -236,18 +236,20 @@ impl Engine {
             &orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
         };
 
-        let mut move_number = 1;
+        //let mut move_number = 1;
         let mut first_search = true;
         let mut max_eval = i64::MIN + 1;
         let mut best_mv = None;
         for mv in moves {
             // Send current searching move for the top level of the search.
+            /*
             if self.search.ply == 0 {
                 self.message_tx
                     .send(UciSenderMessage::CurrMoveInfo(*mv, move_number))
                     .expect("Failed to send message to UCI sender.");
                 move_number += 1;
             }
+            */
 
             let new_board = board.make_move_new(*mv);
 
@@ -262,11 +264,7 @@ impl Engine {
             self.search.ply += 1;
 
             let mut new_eval;
-            if first_search {
-                // Evaluate new position fully if first search.
-                new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
-                first_search = false;
-            } else {
+            if !first_search {
                 // Perform null-window search on following searches.
                 new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
 
@@ -277,6 +275,10 @@ impl Engine {
                 {
                     new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
                 }
+            } else {
+                // Evaluate new position fully if first search.
+                new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                first_search = false;
             }
 
             // Pop new position from the stack and decrement search ply.
