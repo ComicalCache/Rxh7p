@@ -31,7 +31,7 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
     let mut remaining_moves = Vec::new();
 
     for mv in moves {
-        let hash = board.make_move_new(mv).get_hash() + board_ply as u64;
+        let hash = board.make_move_new(mv).get_hash() + board_ply as u64 + search_ply as u64;
         if let Some(entry) = tt.get(hash) {
             match entry.flag {
                 // PV move at higher or equal depth.
