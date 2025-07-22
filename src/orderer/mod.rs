@@ -1,7 +1,7 @@
 #[allow(clippy::module_inception)]
 mod orderer;
-mod orderer_masks;
-mod orderer_see;
-pub use orderer::Orderer;
+pub use orderer::{all, quiescence};
 
 mod orderer_entry;
+mod orderer_masks;
+mod orderer_see;

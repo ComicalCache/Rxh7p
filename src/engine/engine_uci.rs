@@ -4,7 +4,7 @@ use chess::{Board, ChessMove, Color};
 
 use crate::{
     engine::{Engine, search::Search},
-    orderer::Orderer,
+    orderer,
     uci::{GoCommandConfig, UciSenderMessage},
 };
 
@@ -121,7 +121,7 @@ impl Engine {
         let new_board = self.board.make_move_new(best_move);
 
         // Find moves to ponder on after playing best move.
-        let ponder_moves = Orderer::all(
+        let ponder_moves = orderer::all(
             &new_board,
             0,
             &self.tt,

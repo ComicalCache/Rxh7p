@@ -4,6 +4,27 @@ A chess engine project named after the last move of IBM Deep Blue in the first m
 
 The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess. For Lichess an appropriate preconfigured config.yml is provided.
 
+## Benchmarking
+
+Benchmarking can be done using cutechess-cli.
+
+```sh
+cutechess-cli
+  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings -concurrency 8 -ratinginterval 2 -games 500 -repeat -each tc=10+0.1 ponder -recover -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
+```
+
+Explaination:
+
+- `-openings file=openings`: play starting positions from the opening book.
+- `-concurrency 8`: play eight games in parallel.
+- `-ratinginterval 2`: print the rating every two finished games.
+- `-games 500`: play for 500 games.
+- `-each`: apply the following settings to both engines.
+- `tc=10+0.1`: play 10+0.1s.
+- `ponder`: allow engines to ponder during opponent moves.
+- `-recover`: attempt to restart engines on crash instead of forfeiting the match.
+- `sprt elo0=0 elo1=150 alpha=0.05 beta=0.05`: sequential probability ratio test. Hypthoesis H1 is that engine A is stronger than engine B by at least elo0, hypthesis H0 is that engine A is not stronger than B by at least elo1. If either H0 or H1 are fulfilled with error in alpha and beta the match is stopped.
+
 # Bibliography
 
 Pieces of knowledge interesting to anyone reading, myself included.
@@ -33,6 +54,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 <details>
 
 - https://www.chessprogramming.org/Cutechess-cli
+- https://www.reddit.com/r/ComputerChess/comments/m2ertv/comment/gqirufx
 
 </details>
 
@@ -89,6 +111,9 @@ Pieces of knowledge interesting to anyone reading, myself included.
 ### Evaluation
 
 - https://www.chessprogramming.org/Simplified_Evaluation_Function
+- https://www.chessprogramming.org/Piece-Square_Tables
+- https://www.chessprogramming.org/PeSTO's_Evaluation_Function
+- https://www.chessprogramming.org/Tapered_Eval
 
 </details>
 <br>
@@ -110,7 +135,6 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Futility_Pruning
-- https://www.chessprogramming.org/Piece-Square_Tables
 - https://www.chessprogramming.org/Backward_Pawn
   - Further reading https://www.stmintz.com/ccc/index.php?id=56328
 - https://www.chessprogramming.org/Candidate_Passed_Pawn
@@ -131,14 +155,12 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Evaluation_Patterns
 - https://www.chessprogramming.org/King_Safety
 - https://www.chessprogramming.org/Square_Control
-- https://www.chessprogramming.org/Piece-Square_Tables
 - https://www.chessprogramming.org/Center_Control
 - https://www.chessprogramming.org/Connectivity
 - https://www.chessprogramming.org/Space
 - https://www.chessprogramming.org/Tempo
 - https://www.chessprogramming.org/Game_Phases
 - https://www.chessprogramming.org/Evaluation_Discontinuity
-- https://www.chessprogramming.org/Tapered_Eval
 - https://www.chessprogramming.org/Evaluation#Miscellaneous
 - https://www.chessprogramming.org/Automated_Tuning
 - https://www.chessprogramming.org/Score
@@ -160,3 +182,4 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Aspiration_Windows
 
 </details>
+````

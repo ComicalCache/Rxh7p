@@ -8,8 +8,7 @@ use chess::{Board, BoardStatus, ChessMove};
 
 use crate::{
     engine::search::Search,
-    evaluator::Evaluator,
-    orderer::Orderer,
+    evaluator, orderer,
     tt::{TT, TtEntry, TtEntryFlag},
     uci::UciSenderMessage,
 };
@@ -210,7 +209,7 @@ impl Engine {
 
         // Checkmate or stalemate.
         if board.status() != BoardStatus::Ongoing {
-            return Some(Evaluator::evaluate(&board));
+            return Some(evaluator::evaluate(&board));
         }
 
         let prev_alpha = alpha;
@@ -234,7 +233,7 @@ impl Engine {
         let moves = if let Some(searchmoves) = searchmoves {
             searchmoves
         } else {
-            &Orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
+            &orderer::all(&board, depth, &self.tt, self.board_ply, self.search.ply)
         };
 
         let mut max_eval = i64::MIN + 1;
@@ -309,7 +308,7 @@ impl Engine {
 
     /// Performs a quiescence search on a given board.
     fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
-        let mut max_eval = Evaluator::evaluate(&board);
+        let mut max_eval = evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
@@ -318,7 +317,7 @@ impl Engine {
 
         alpha = max(max_eval, alpha);
 
-        for capture in Orderer::quiescence(&board) {
+        for capture in orderer::quiescence(&board) {
             // Evaluate new position.
             let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
 

@@ -1,0 +1,100 @@
+use chess::{Board, Color, Piece, Square};
+
+use crate::evaluator::{
+    piece_tables::piece_table_value,
+    piece_values::{END_GAME_PIECE_VALUES, MID_GAME_PIECE_VALUES},
+};
+
+/// Returns the value that a type of piece adds to the game phase calculation.
+fn game_phase_value(piece: Piece) -> i64 {
+    match piece {
+        Piece::Pawn => 0,
+        Piece::Knight => 1,
+        Piece::Bishop => 1,
+        Piece::Rook => 2,
+        Piece::Queen => 4,
+        Piece::King => 0,
+    }
+}
+
+/// Returns the value of a type of piece.
+pub fn piece_value(board: &Board, color: Color, piece: Piece, square: Square) -> i64 {
+    let mut tapered_eval = 0;
+
+    // Calculate game phase.
+    let phase_pieces = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
+    for phase_piece in phase_pieces {
+        tapered_eval += board.pieces(phase_piece).popcnt() as i64 * game_phase_value(phase_piece);
+    }
+
+    // Get piece value.
+    let (mut mid_game_value, mut end_game_value) = piece_table_value(color, piece, square);
+    mid_game_value += MID_GAME_PIECE_VALUES[piece];
+    end_game_value += END_GAME_PIECE_VALUES[piece];
+
+    // Tapered evaluation.
+    let mid_game_phase = tapered_eval.min(24);
+    let end_game_phase = 24 - mid_game_phase;
+    (mid_game_value * mid_game_phase + end_game_value * end_game_phase) / 24
+}
+
+/// Evaluates the current board.
+pub fn evaluate(board: &Board) -> i64 {
+    // Stalemate is neutral, being in checkmate is VERY bad since it means the player checking
+    // is in checkmate.
+    match board.status() {
+        chess::BoardStatus::Stalemate => return 0,
+        chess::BoardStatus::Checkmate => return -10_000_000,
+        _ => {}
+    }
+
+    let pieces = [
+        Piece::Pawn,
+        Piece::Knight,
+        Piece::Bishop,
+        Piece::Rook,
+        Piece::Queen,
+        Piece::King,
+    ];
+
+    let mut tapered_eval = 0;
+
+    // Own value.
+    let mut own_mid_game_value = 0;
+    let mut own_end_game_value = 0;
+    let color = board.side_to_move();
+    for piece in pieces {
+        for square in board.color_combined(color) & board.pieces(piece) {
+            let (mid, end) = piece_table_value(color, piece, square);
+            own_mid_game_value += mid + MID_GAME_PIECE_VALUES[piece];
+            own_end_game_value += end + END_GAME_PIECE_VALUES[piece];
+
+            // Increase tapered evalauation towards end game for each piece.
+            tapered_eval += game_phase_value(piece);
+        }
+    }
+
+    // Opponent value.
+    let mut opponent_mid_game_value = 0;
+    let mut opponent_end_game_value = 0;
+    let color = !color;
+    for piece in pieces {
+        for square in board.color_combined(color) & board.pieces(piece) {
+            let (mid, end) = piece_table_value(color, piece, square);
+            opponent_mid_game_value += mid + MID_GAME_PIECE_VALUES[piece];
+            opponent_end_game_value += end + END_GAME_PIECE_VALUES[piece];
+
+            // Increase tapered evalauation towards end game for each piece.
+            tapered_eval += game_phase_value(piece);
+        }
+    }
+
+    // Evaluation of the phases by themselves.
+    let mid_game_eval = own_mid_game_value - opponent_mid_game_value;
+    let end_game_eval = own_end_game_value - opponent_end_game_value;
+
+    // Tapered evaluation.
+    let mid_game_phase = tapered_eval.min(24);
+    let end_game_phase = 24 - mid_game_phase;
+    (mid_game_eval * mid_game_phase + end_game_eval * end_game_phase) / 24
+}

@@ -2,8 +2,6 @@ use std::{sync::mpsc::Receiver, time::Duration};
 
 use chess::ChessMove;
 
-use crate::evaluator::Evaluator;
-
 /// A UCI message sent by the engine.
 pub enum UciSenderMessage {
     /// bestmove message.
@@ -51,7 +49,7 @@ impl UciSender {
 
     /// id.
     pub fn id() {
-        println!("id name Rxh7+");
+        println!("id name Rxh7+ V1.1");
         println!("id author ComicalCache");
         println!("uciok");
     }
@@ -74,9 +72,8 @@ impl UciSender {
     fn search_info(depth: u16, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
         // FIXME: seldepth, nps, refutation, currline and score mate should be sent.
         let mut msg = format!(
-            "info depth {depth} time {} nodes {nodes} score cp {}",
+            "info depth {depth} time {} nodes {nodes} score cp {score_cp}",
             time.as_millis(),
-            Evaluator::centi_pawns(score_cp)
         );
 
         if !pv.is_empty() {
