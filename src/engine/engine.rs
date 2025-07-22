@@ -261,6 +261,7 @@ impl Engine {
                 // Inverse result due to symmetry.
                 if let Some(eval) = new_eval
                     && -eval > alpha
+                    && beta - alpha > 1
                 {
                     new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
                 }
