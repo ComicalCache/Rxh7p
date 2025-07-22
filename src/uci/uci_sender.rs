@@ -68,7 +68,7 @@ impl UciSender {
         // FIXME: seldepth, refutation, currline and score mate should be sent.
         let mut msg = format!(
             "info depth {depth} time {} nodes {nodes} nps {} score cp {score_cp}",
-            nodes / time.as_secs(),
+            nodes / time.as_secs().max(1),
             time.as_millis(),
         );
 
