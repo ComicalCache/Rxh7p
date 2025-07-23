@@ -44,7 +44,7 @@ impl UciSender {
 
     /// id.
     pub fn id() {
-        println!("id name Rxh7+ V1.1");
+        println!("id name Rxh7+ V1.2");
         println!("id author ComicalCache");
         println!("uciok");
     }

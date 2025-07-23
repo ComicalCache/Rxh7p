@@ -10,7 +10,7 @@ Benchmarking can be done using cutechess-cli.
 
 ```sh
 cutechess-cli
-  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings order=random policy=round plies=14 -concurrency 8 -ratinginterval 2 -rounds 500 -games 2 -each tc=30+0.2 ponder -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
+  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings order=random policy=round plies=14 -concurrency 8 -ratinginterval 2 -rounds 500 -games 2 -each tc=30+0.5 ponder -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
 ```
 
 Explaination:
@@ -21,7 +21,7 @@ Explaination:
 - `-rounds 500`: play for 500 rounds each two games.
 - `-games 2`: play for 500 rounds each two games.
 - `-each`: apply the following settings to both engines.
-- `tc=30+0.2`: play 30+0.2s.
+- `tc=30+0.5`: play 30+0.5s.
 - `ponder`: allow engines to ponder during opponent moves.
 - `sprt elo0=0 elo1=150 alpha=0.05 beta=0.05`: sequential probability ratio test. Hypthoesis H1 is that engine A is stronger than engine B by at least elo0, hypthesis H0 is that engine A is not stronger than B by at least elo1. If either H0 or H1 are fulfilled with error in alpha and beta the match is stopped.
 
@@ -129,6 +129,9 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Triangular_PV-Table
 
+- https://www.chessprogramming.org/Material#Balance
+- https://www.chessprogramming.org/CPW-Engine_recognize
+- https://www.chessprogramming.org/Draw_Evaluation
 - https://www.chessprogramming.org/Lazy_Evaluation
 - https://zwischenzug.substack.com/p/centipawns-suck
 - https://www.chessprogramming.org/History_Leaf_Pruning
