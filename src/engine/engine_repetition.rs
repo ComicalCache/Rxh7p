@@ -11,7 +11,7 @@ impl Engine {
         }
 
         // Save to unwrap since at least eight moves have been played.
-        let target_hash = self.position_stack.last().unwrap().0.get_hash();
+        let target_hash = self.position_stack.last().unwrap().0;
         let mut repetitions = 1;
 
         let len = self.position_stack.len();
@@ -22,7 +22,7 @@ impl Engine {
             }
 
             // Check if it is a repetition.
-            if self.position_stack[idx].0.get_hash() == target_hash {
+            if self.position_stack[idx].0 == target_hash {
                 repetitions += 1;
 
                 if repetitions == 3 {

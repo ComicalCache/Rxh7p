@@ -4,5 +4,8 @@ White advantage:
 Threefold repetition:
 8/r3bp2/4k1p1/P7/P2QP2P/3P1P1P/5R2/4B1K1 w - - 6 35
 
+Forced threefold to not lose for white:
+6k1/4Q3/p5p1/8/8/6P1/P4PKP/1rq5 w - - 4 21
+
 Endgames:
 8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1

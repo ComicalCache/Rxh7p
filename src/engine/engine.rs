@@ -15,13 +15,15 @@ use crate::{
 
 /// The chess engine itself, it performs the search and data keeping.
 pub struct Engine {
+    /// Initial position.
+    pub(super) initial_board: u64,
     /// Internal board.
     pub(super) board: Board,
     /// Transposition table.
     pub(super) tt: TT,
 
     /// Stack of played positions to detect threefold repetitions.
-    pub(super) position_stack: Vec<(Board, bool)>,
+    pub(super) position_stack: Vec<(u64, bool)>,
 
     // TODO: 50 move rule.
     /// Information about the current search.
@@ -45,9 +47,10 @@ impl Engine {
         let board = Board::default();
 
         Engine {
+            initial_board: board.get_hash(),
             board,
             tt: TT::new(),
-            position_stack: vec![(board, true)],
+            position_stack: vec![(board.get_hash(), true)],
             search: Search::default(),
             message_tx,
             stop_rx,
@@ -150,14 +153,14 @@ impl Engine {
 
         // Depth limit.
         if let Some(depth) = self.search.depth
-            && self.search.ply >= depth
+            && self.search.ply > depth
         {
             return true;
         }
 
         // Node limit.
         if let Some(nodes) = self.search.node_limit
-            && self.search.nodes >= nodes
+            && self.search.nodes > nodes
         {
             return true;
         }
@@ -237,13 +240,9 @@ impl Engine {
             let new_board = board.make_move_new(*mv);
 
             // Add new position to and increment search ply.
-            // Save to unwrap since always at least one position exists after initialization.
-            let irreversible = Engine::move_is_irreversible(
-                &self.position_stack.last().unwrap().0,
-                &new_board,
-                *mv,
-            );
-            self.position_stack.push((new_board, irreversible));
+            let irreversible = Engine::move_is_irreversible(&board, &new_board, *mv);
+            self.position_stack
+                .push((new_board.get_hash(), irreversible));
             self.search.ply += 1;
 
             let mut new_eval;
@@ -252,10 +251,9 @@ impl Engine {
                 new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
 
                 // If the null-window search failed high, repeat with a full search.
-                // Inverse result due to symmetry.
                 if let Some(eval) = new_eval
                 // Prune non-PV moves. In rare cases this condition is true for PV moves, but the
-                // chance is negligible.
+                // chance is negligible. Inverse result due to symmetry.
                     && -eval > alpha
                     && -eval < beta
                 {

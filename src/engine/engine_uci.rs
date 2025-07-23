@@ -11,18 +11,18 @@ use crate::{
 impl Engine {
     /// Initializes the engine with defaults.
     pub fn init(&mut self, board: Board) {
+        self.initial_board = board.get_hash();
         self.board = board;
         self.tt.clear();
         self.position_stack.clear();
-        self.position_stack.push((board, true));
+        self.position_stack.push((board.get_hash(), true));
         self.search = Search::default();
     }
 
     /// Handles a received UCI position command and initializes itself accordingly.
     pub fn uci_position(&mut self, mut board: Board, moves: Option<Vec<ChessMove>>) {
         // Initial position does not match engine.
-        // Safe to unwrap since always one board exists (default by default...).
-        if board.get_hash() != self.position_stack.first().unwrap().0.get_hash() {
+        if board.get_hash() != self.initial_board {
             self.init(board);
         }
 
@@ -42,7 +42,8 @@ impl Engine {
             let new_board = board.make_move_new(mv);
 
             let irreversible = Engine::move_is_irreversible(&board, &new_board, mv);
-            self.position_stack.push((new_board, irreversible));
+            self.position_stack
+                .push((new_board.get_hash(), irreversible));
 
             board = new_board;
         }
