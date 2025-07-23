@@ -125,6 +125,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 <details>
 
+- https://www.chessprogramming.org/Sequential_Probability_Ratio_Test
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Triangular_PV-Table
 

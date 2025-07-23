@@ -254,7 +254,10 @@ impl Engine {
                 // If the null-window search failed high, repeat with a full search.
                 // Inverse result due to symmetry.
                 if let Some(eval) = new_eval
+                // Prune non-PV moves. In rare cases this condition is true for PV moves, but the
+                // chance is negligible.
                     && -eval > alpha
+                    && -eval < beta
                 {
                     new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
                 }

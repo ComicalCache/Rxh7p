@@ -31,7 +31,6 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
     let mut remaining_moves = Vec::new();
 
     for mv in moves {
-        // Plus one since the move has been made and is one ply further down.
         if let Some(entry) = tt.get(board.make_move_new(mv).get_hash()) {
             match entry.flag {
                 // PV move at higher or equal depth.
