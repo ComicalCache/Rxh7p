@@ -14,7 +14,7 @@ use crate::{
 /// 4. Killer moves.
 /// 5. Bad captures.
 /// 6. Remaining moves (random order).
-pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) -> Vec<ChessMove> {
+pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
     let mut moves = MoveGen::new_legal(board);
 
     // Plus one for principal variation move.
@@ -25,18 +25,17 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
     let captures = orderer_see::see_order_captures(board, Vec::from_iter(&mut moves));
 
     moves.set_iterator_mask(!EMPTY);
-    let mut pv_hash_moves = BinaryHeap::new();
+    let mut pv_moves = BinaryHeap::new();
     let mut killer_moves = BinaryHeap::new();
     let mut bad_captures = BinaryHeap::new();
     let mut remaining_moves = Vec::new();
 
     for mv in moves {
-        let hash = board.make_move_new(mv).get_hash() + board_ply as u64 + search_ply as u64;
-        if let Some(entry) = tt.get(hash) {
+        if let Some(entry) = tt.get(board.make_move_new(mv).get_hash()) {
             match entry.flag {
-                // PV hash move at higher or equal depth.
+                // PV move at higher or equal depth.
                 TtEntryFlag::Exact if entry.depth >= depth => {
-                    pv_hash_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv))
+                    pv_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv))
                 }
                 // Killer move at higher or equal depth.
                 TtEntryFlag::Beta if entry.depth >= depth => {
@@ -51,12 +50,12 @@ pub fn all(board: &Board, depth: u16, tt: &TT, board_ply: u16, search_ply: u16) 
 
     // Search principal variation move. Will be doubly in list, second search uses the hashed
     // result.
-    if let Some(entry) = tt.get(board.get_hash() + board_ply as u64 + search_ply as u64) {
+    if let Some(entry) = tt.get(board.get_hash()) {
         ret.push(entry.mv);
     }
 
     // Search PV hash moves.
-    ret.extend(pv_hash_moves.iter().map(|entry| entry.mv));
+    ret.extend(pv_moves.iter().map(|entry| entry.mv));
 
     // Search good and equal captures.
     for entry in captures {
