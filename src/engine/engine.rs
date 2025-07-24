@@ -248,8 +248,11 @@ impl Engine {
 
             let mut new_eval;
             if !first_search {
+                // Gather moves here and pass down to avoid having to search moves twice.
+                let new_moves = Some(orderer::all(&new_board, depth, &self.tt));
+
                 // Perform null-window search on following searches.
-                new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
+                new_eval = self.pvs(new_board, &new_moves, -alpha - 1, -alpha, depth - 1);
 
                 // If the null-window search failed high, repeat with a full search.
                 if let Some(eval) = new_eval
@@ -258,7 +261,7 @@ impl Engine {
                     && -eval > alpha
                     && -eval < beta
                 {
-                    new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs(new_board, &new_moves, -beta, -alpha, depth - 1);
                 }
             } else {
                 // Evaluate new position fully if first search.
