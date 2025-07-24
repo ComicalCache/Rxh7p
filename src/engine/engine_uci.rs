@@ -76,15 +76,15 @@ impl Engine {
             Color::White => {
                 if let Some(time) = config.wtime {
                     let inc = config.winc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 30.
-                    self.search.move_time = Some((time + inc).div_f64(30.));
+                    // Just divide remaining time by 30 plus half of the increment.
+                    self.search.move_time = Some((time + inc.div_f64(2.)).div_f64(30.));
                 }
             }
             Color::Black => {
                 if let Some(time) = config.btime {
                     let inc = config.binc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 30.
-                    self.search.move_time = Some((time + inc).div_f64(30.));
+                    // Just divide remaining time by 30 plus half of the increment.
+                    self.search.move_time = Some((time + inc.div_f64(2.)).div_f64(30.));
                 }
             }
         }
