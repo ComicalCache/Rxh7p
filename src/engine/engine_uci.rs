@@ -101,6 +101,13 @@ impl Engine {
             }
         }
 
+        // Subtract 15ms from the time limit to avoid losing by time.
+        if let Some(time) = self.search.move_time {
+            if time > Duration::from_millis(15) {
+                self.search.move_time = Some(time - Duration::from_millis(15));
+            }
+        }
+
         // Set remaining parameters.
         self.search.node_limit = config.nodes;
         self.search.depth = config.depth;
