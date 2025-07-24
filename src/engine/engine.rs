@@ -203,7 +203,7 @@ impl Engine {
 
         // Quiescence search to avoid event horizon.
         if depth == 0 {
-            return Some(Engine::quiescence(board, alpha, beta));
+            return self.quiescence(board, alpha, beta);
         }
 
         // Checkmate or stalemate.
@@ -310,29 +310,39 @@ impl Engine {
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
+    fn quiescence(&mut self, board: Board, mut alpha: i64, beta: i64) -> Option<i64> {
+        if self.stop_search() {
+            return None;
+        }
+
         let mut max_eval = evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
-            return max_eval;
+            return Some(max_eval);
         }
 
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
             // Evaluate new position.
-            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
+            if let Some(new_eval) = self.quiescence(board.make_move_new(capture), -beta, -alpha) {
+                // Invert result due to symmetry.
+                let new_eval = -new_eval;
 
-            max_eval = max(new_eval, max_eval);
-            alpha = max(new_eval, alpha);
+                max_eval = max(new_eval, max_eval);
+                alpha = max(new_eval, alpha);
 
-            // Cut-off, move was too good, opponent would not allow it.
-            if new_eval >= beta {
-                break;
+                // Cut-off, move was too good, opponent would not allow it.
+                if new_eval >= beta {
+                    break;
+                }
+            } else {
+                // If quiescence returns None, search was cancelled, return up the chain.
+                return None;
             }
         }
 
-        max_eval
+        Some(max_eval)
     }
 }
