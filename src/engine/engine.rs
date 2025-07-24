@@ -194,8 +194,8 @@ impl Engine {
         // Count node as visited.
         self.search.nodes += 1;
 
-        // Return score of 0 if position is a three-fold repetition.
-        if self.threefold_repetition() {
+        // Return score of 0 if position is a repetition.
+        if self.repetition() {
             return Some(0);
         }
 
@@ -210,11 +210,10 @@ impl Engine {
         }
 
         let prev_alpha = alpha;
-        let hash = board.get_hash();
         let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
-        if let Some(entry) = self.tt.get(hash)
+        if let Some(entry) = self.tt.get(board.get_hash())
             && entry.depth >= depth
         {
             let eval = entry.value(side);
@@ -303,7 +302,7 @@ impl Engine {
             side,
             max_eval,
         );
-        self.tt.set(hash, tt_entry);
+        self.tt.set(board.get_hash(), tt_entry);
 
         Some(max_eval)
     }

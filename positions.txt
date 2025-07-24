@@ -7,5 +7,8 @@ Threefold repetition:
 Forced threefold to not lose for white:
 6k1/4Q3/p5p1/8/8/6P1/P4PKP/1rq5 w - - 4 21
 
+Weird threefold:
+position fen rnb1kb1r/pppp1ppp/5n2/2qNN3/3PP3/8/PPP2PPP/R1BQKB1R b KQkq - 0 6 moves c5d6 e5c4 d6c6 c4e5 c6d6 e5c4 d6c6
+
 Endgames:
 8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1
