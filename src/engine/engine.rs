@@ -112,6 +112,7 @@ impl Engine {
 
     /// Returns the current principal variation of the internal state.
     fn pv(&self, depth: u16) -> Vec<ChessMove> {
+        // At most print pv of ten plies.
         let depth = depth.max(10);
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
