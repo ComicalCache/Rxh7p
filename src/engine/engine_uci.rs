@@ -101,13 +101,13 @@ impl Engine {
             }
         }
 
-        /*// Subtract 100ms from the time limit to avoid losing by time.
+        // Subtract 20ms from the time limit to avoid losing by time.
         if let Some(time) = self.search.move_time {
-            let ms = Duration::from_millis(100);
+            let ms = Duration::from_millis(20);
             if time > ms {
                 self.search.move_time = Some(time - ms);
             }
-        }*/
+        }
 
         // Set remaining parameters.
         self.search.node_limit = config.nodes;

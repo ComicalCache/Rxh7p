@@ -249,6 +249,8 @@ impl Engine {
             let mut new_eval;
             if !first_search {
                 // Gather moves here and pass down to avoid having to search moves twice.
+                // This means second search doesn't profit from results of first in terms of
+                // ordering but SEE during ordering is very expensive.
                 let new_moves = Some(orderer::all(&new_board, depth, &self.tt));
 
                 // Perform null-window search on following searches.
