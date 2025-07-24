@@ -153,6 +153,16 @@ impl Engine {
             return false;
         }
 
+        // Move time limit.
+        if let Some(move_time) = self.search.move_time
+            && SystemTime::now()
+                .duration_since(self.search.start_time)
+                .unwrap()
+                > move_time
+        {
+            return true;
+        }
+
         // Depth limit.
         if let Some(depth) = self.search.depth
             && self.search.ply > depth
@@ -160,19 +170,14 @@ impl Engine {
             return true;
         }
 
-        // Node limit.
-        if let Some(nodes) = self.search.node_limit
-            && self.search.nodes > nodes
-        {
+        // Never search past depth 30.
+        if self.search.ply > 30 {
             return true;
         }
 
-        // Move time limit.
-        if let Some(move_time) = self.search.move_time
-            && SystemTime::now()
-                .duration_since(self.search.start_time)
-                .unwrap()
-                > move_time
+        // Node limit.
+        if let Some(nodes) = self.search.node_limit
+            && self.search.nodes > nodes
         {
             return true;
         }
