@@ -101,9 +101,9 @@ impl Engine {
             }
         }
 
-        // Subtract 250ms from the time limit to avoid losing by time.
+        // Subtract 10ms from the time limit to avoid losing by time.
         if let Some(time) = self.search.move_time {
-            let ms = Duration::from_millis(250);
+            let ms = Duration::from_millis(10);
             if time > ms {
                 self.search.move_time = Some(time - ms);
             }

@@ -73,6 +73,11 @@ impl Engine {
         let mut eval = 0;
 
         for depth in 1.. {
+            // Search at most to depth 30.
+            if depth > 30 {
+                break;
+            }
+
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
@@ -113,7 +118,7 @@ impl Engine {
     /// Returns the current principal variation of the internal state.
     fn pv(&self, depth: u16) -> Vec<ChessMove> {
         // At most print pv of ten plies.
-        let depth = depth.max(10);
+        let depth = depth.min(10);
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
 
@@ -167,11 +172,6 @@ impl Engine {
         if let Some(depth) = self.search.depth
             && self.search.ply > depth
         {
-            return true;
-        }
-
-        // Never search past depth 30.
-        if self.search.ply > 30 {
             return true;
         }
 
