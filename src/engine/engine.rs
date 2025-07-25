@@ -1,8 +1,4 @@
-use std::{
-    cmp::max,
-    sync::mpsc::{Receiver, Sender},
-    time::SystemTime,
-};
+use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
 use chess::{Board, BoardStatus, ChessMove};
 
@@ -10,25 +6,25 @@ use crate::{
     engine::search::Search,
     evaluator, orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::UciSenderMessage,
+    uci::uci_sender,
 };
 
 /// The chess engine itself, it performs the search and data keeping.
 pub struct Engine {
+    /// Initial position.
+    pub(super) initial_board: u64,
     /// Internal board.
     pub(super) board: Board,
     /// Transposition table.
     pub(super) tt: TT,
 
     /// Stack of played positions to detect threefold repetitions.
-    pub(super) position_stack: Vec<(Board, bool)>,
+    pub(super) position_stack: Vec<(u64, bool)>,
 
     // TODO: 50 move rule.
     /// Information about the current search.
     pub(super) search: Search,
 
-    /// UCI sender. Sends messages to UCI on our behalf to avoid exepnsive stdio on hot path.
-    pub(super) message_tx: Sender<UciSenderMessage>,
     /// Stop receiver. Receives if a stop command was sent.
     pub(super) stop_rx: Receiver<()>,
     /// Ponder receiver. Receives if a ponderhit command was sent.
@@ -37,19 +33,15 @@ pub struct Engine {
 
 impl Engine {
     /// Creates a new engine.
-    pub fn new(
-        message_tx: Sender<UciSenderMessage>,
-        stop_rx: Receiver<()>,
-        ponderhit_rx: Receiver<()>,
-    ) -> Self {
+    pub fn new(stop_rx: Receiver<()>, ponderhit_rx: Receiver<()>) -> Self {
         let board = Board::default();
 
         Engine {
+            initial_board: board.get_hash(),
             board,
             tt: TT::new(),
-            position_stack: vec![(board, true)],
+            position_stack: vec![(board.get_hash(), true)],
             search: Search::default(),
-            message_tx,
             stop_rx,
             ponderhit_rx,
         }
@@ -70,6 +62,11 @@ impl Engine {
         let mut eval = 0;
 
         for depth in 1.. {
+            // Search at most to depth 35.
+            if depth > 35 {
+                break;
+            }
+
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
@@ -88,16 +85,14 @@ impl Engine {
                     .duration_since(self.search.start_time)
                     .unwrap();
 
-                self.message_tx
-                    .send(UciSenderMessage::SearchInfo(
-                        depth,
-                        search_time,
-                        self.search.nodes,
-                        // FIXME: gather pv should not be done here on the hot path?
-                        self.pv(pv_depth),
-                        eval,
-                    ))
-                    .expect("Failed to send message to UCI sender.");
+                uci_sender::search_info(
+                    depth,
+                    search_time,
+                    self.search.nodes,
+                    // FIXME: gather pv should not be done here on the hot path?
+                    self.pv(pv_depth),
+                    eval,
+                );
             }
 
             // Search was cancelled.
@@ -109,6 +104,8 @@ impl Engine {
 
     /// Returns the current principal variation of the internal state.
     fn pv(&self, depth: u16) -> Vec<ChessMove> {
+        // At most print pv of eight plies.
+        let depth = depth.min(8);
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
 
@@ -148,26 +145,26 @@ impl Engine {
             return false;
         }
 
-        // Depth limit.
-        if let Some(depth) = self.search.depth
-            && self.search.ply >= depth
-        {
-            return true;
-        }
-
-        // Node limit.
-        if let Some(nodes) = self.search.node_limit
-            && self.search.nodes >= nodes
-        {
-            return true;
-        }
-
         // Move time limit.
         if let Some(move_time) = self.search.move_time
             && SystemTime::now()
                 .duration_since(self.search.start_time)
                 .unwrap()
                 > move_time
+        {
+            return true;
+        }
+
+        // Depth limit.
+        if let Some(depth) = self.search.depth
+            && self.search.ply > depth
+        {
+            return true;
+        }
+
+        // Node limit.
+        if let Some(nodes) = self.search.node_limit
+            && self.search.nodes > nodes
         {
             return true;
         }
@@ -191,14 +188,14 @@ impl Engine {
         // Count node as visited.
         self.search.nodes += 1;
 
-        // Return score of 0 if position is a three-fold repetition.
-        if self.threefold_repetition() {
+        // Return score of 0 if position is a repetition.
+        if self.repetition() {
             return Some(0);
         }
 
         // Quiescence search to avoid event horizon.
         if depth == 0 {
-            return Some(Engine::quiescence(board, alpha, beta));
+            return self.quiescence(board, alpha, beta);
         }
 
         // Checkmate or stalemate.
@@ -207,11 +204,10 @@ impl Engine {
         }
 
         let prev_alpha = alpha;
-        let hash = board.get_hash();
         let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
-        if let Some(entry) = self.tt.get(hash)
+        if let Some(entry) = self.tt.get(board.get_hash())
             && entry.depth >= depth
         {
             let eval = entry.value(side);
@@ -237,29 +233,29 @@ impl Engine {
             let new_board = board.make_move_new(*mv);
 
             // Add new position to and increment search ply.
-            // Save to unwrap since always at least one position exists after initialization.
-            let irreversible = Engine::move_is_irreversible(
-                &self.position_stack.last().unwrap().0,
-                &new_board,
-                *mv,
-            );
-            self.position_stack.push((new_board, irreversible));
+            let irreversible = Engine::move_is_irreversible(&board, &new_board, *mv);
+            self.position_stack
+                .push((new_board.get_hash(), irreversible));
             self.search.ply += 1;
 
             let mut new_eval;
             if !first_search {
+                // Gather moves here and pass down to avoid having to search moves twice.
+                // This means second search doesn't profit from results of first in terms of
+                // ordering but SEE during ordering is very expensive.
+                let new_moves = Some(orderer::all(&new_board, depth, &self.tt));
+
                 // Perform null-window search on following searches.
-                new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
+                new_eval = self.pvs(new_board, &new_moves, -alpha - 1, -alpha, depth - 1);
 
                 // If the null-window search failed high, repeat with a full search.
-                // Inverse result due to symmetry.
                 if let Some(eval) = new_eval
                 // Prune non-PV moves. In rare cases this condition is true for PV moves, but the
-                // chance is negligible.
+                // chance is negligible. Inverse result due to symmetry.
                     && -eval > alpha
                     && -eval < beta
                 {
-                    new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs(new_board, &new_moves, -beta, -alpha, depth - 1);
                 }
             } else {
                 // Evaluate new position fully if first search.
@@ -305,35 +301,45 @@ impl Engine {
             side,
             max_eval,
         );
-        self.tt.set(hash, tt_entry);
+        self.tt.set(board.get_hash(), tt_entry);
 
         Some(max_eval)
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
+    fn quiescence(&mut self, board: Board, mut alpha: i64, beta: i64) -> Option<i64> {
+        if self.stop_search() {
+            return None;
+        }
+
         let mut max_eval = evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
-            return max_eval;
+            return Some(max_eval);
         }
 
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
             // Evaluate new position.
-            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
+            if let Some(new_eval) = self.quiescence(board.make_move_new(capture), -beta, -alpha) {
+                // Invert result due to symmetry.
+                let new_eval = -new_eval;
 
-            max_eval = max(new_eval, max_eval);
-            alpha = max(new_eval, alpha);
+                max_eval = max(new_eval, max_eval);
+                alpha = max(new_eval, alpha);
 
-            // Cut-off, move was too good, opponent would not allow it.
-            if new_eval >= beta {
-                break;
+                // Cut-off, move was too good, opponent would not allow it.
+                if new_eval >= beta {
+                    break;
+                }
+            } else {
+                // If quiescence returns None, search was cancelled, return up the chain.
+                return None;
             }
         }
 
-        max_eval
+        Some(max_eval)
     }
 }

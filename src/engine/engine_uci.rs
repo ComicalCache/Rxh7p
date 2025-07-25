@@ -5,24 +5,24 @@ use chess::{Board, ChessMove, Color};
 use crate::{
     engine::{Engine, search::Search},
     orderer,
-    uci::{GoCommandConfig, UciSenderMessage},
+    uci::{GoCommandConfig, uci_sender},
 };
 
 impl Engine {
     /// Initializes the engine with defaults.
     pub fn init(&mut self, board: Board) {
+        self.initial_board = board.get_hash();
         self.board = board;
         self.tt.clear();
         self.position_stack.clear();
-        self.position_stack.push((board, true));
+        self.position_stack.push((board.get_hash(), true));
         self.search = Search::default();
     }
 
     /// Handles a received UCI position command and initializes itself accordingly.
     pub fn uci_position(&mut self, mut board: Board, moves: Option<Vec<ChessMove>>) {
         // Initial position does not match engine.
-        // Safe to unwrap since always one board exists (default by default...).
-        if board.get_hash() != self.position_stack.first().unwrap().0.get_hash() {
+        if board.get_hash() != self.initial_board {
             self.init(board);
         }
 
@@ -42,7 +42,8 @@ impl Engine {
             let new_board = board.make_move_new(mv);
 
             let irreversible = Engine::move_is_irreversible(&board, &new_board, mv);
-            self.position_stack.push((new_board, irreversible));
+            self.position_stack
+                .push((new_board.get_hash(), irreversible));
 
             board = new_board;
         }
@@ -75,15 +76,15 @@ impl Engine {
             Color::White => {
                 if let Some(time) = config.wtime {
                     let inc = config.winc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 25.
-                    self.search.move_time = Some((time + inc).div_f64(25.));
+                    // Just divide remaining time by 30 plus half of the increment.
+                    self.search.move_time = Some((time + (inc / 2)) / 30);
                 }
             }
             Color::Black => {
                 if let Some(time) = config.btime {
                     let inc = config.binc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 25.
-                    self.search.move_time = Some((time + inc).div_f64(25.));
+                    // Just divide remaining time by 30 plus half of the increment.
+                    self.search.move_time = Some((time + (inc / 2)) / 30);
                 }
             }
         }
@@ -97,6 +98,14 @@ impl Engine {
             } else {
                 // No time set yet.
                 self.search.move_time = Some(time);
+            }
+        }
+
+        // Subtract 10ms from the time limit to avoid losing by time.
+        if let Some(time) = self.search.move_time {
+            let ms = Duration::from_millis(10);
+            if time > ms {
+                self.search.move_time = Some(time - ms);
             }
         }
 
@@ -123,15 +132,10 @@ impl Engine {
         let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
 
         // Send reply over UCI.
-        self.message_tx
-            .send(UciSenderMessage::BestMove(
-                best_move,
-                if !ponder_moves.is_empty() {
-                    Some(ponder_moves)
-                } else {
-                    None
-                },
-            ))
-            .expect("Failed to send message to UCI sender.");
+        if !ponder_moves.is_empty() {
+            uci_sender::best_move(best_move, Some(ponder_moves));
+        } else {
+            uci_sender::best_move(best_move, None);
+        }
     }
 }

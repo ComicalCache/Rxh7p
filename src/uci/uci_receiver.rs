@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use crate::uci::{UciCommand, UciSender};
+use crate::uci::{UciCommand, uci_sender};
 
 /// Struct acting as a UCI receiver. It runs in its own thread and communicates with the engine via
 /// message passing. The stop and ponderhit command require their own channels since they need to be
@@ -45,7 +45,7 @@ impl UciReceiver {
             match command {
                 // Don't propagate invalid commands to the engine.
                 UciCommand::Invalid => continue,
-                UciCommand::Uci => UciSender::id(),
+                UciCommand::Uci => uci_sender::id(),
                 // Send here since main is busy.
                 UciCommand::Stop => self
                     .stop_tx

@@ -3,31 +3,20 @@ use chess::{Board, ChessMove, Color, Piece};
 use crate::engine::Engine;
 
 impl Engine {
-    /// Checks if the current position is a threefold repetition.
-    pub(super) fn threefold_repetition(&self) -> bool {
-        // Can't be a three fold repetition if not sufficient moves have been played.
-        if self.position_stack.len() < 8 {
-            return false;
-        }
+    /// Checks if the current position is a repetition.
+    pub(super) fn repetition(&self) -> bool {
+        // Save to unwrap since at least the start pos exists.
+        let target_hash = self.position_stack.last().unwrap().0;
 
-        // Save to unwrap since at least eight moves have been played.
-        let target_hash = self.position_stack.last().unwrap().0.get_hash();
-        let mut repetitions = 1;
-
-        let len = self.position_stack.len();
-        for idx in (0..len - 1).rev() {
+        for idx in (0..self.position_stack.len() - 1).rev() {
             // Don't search past irreversible moves.
             if self.position_stack[idx].1 {
                 break;
             }
 
             // Check if it is a repetition.
-            if self.position_stack[idx].0.get_hash() == target_hash {
-                repetitions += 1;
-
-                if repetitions == 3 {
-                    return true;
-                }
+            if self.position_stack[idx].0 == target_hash {
+                return true;
             }
         }
 
