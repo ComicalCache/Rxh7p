@@ -62,8 +62,8 @@ impl Engine {
         let mut eval = 0;
 
         for depth in 1.. {
-            // Search at most to depth 30.
-            if depth > 30 {
+            // Search at most to depth 35.
+            if depth > 35 {
                 break;
             }
 
@@ -104,8 +104,8 @@ impl Engine {
 
     /// Returns the current principal variation of the internal state.
     fn pv(&self, depth: u16) -> Vec<ChessMove> {
-        // At most print pv of ten plies.
-        let depth = depth.min(10);
+        // At most print pv of eight plies.
+        let depth = depth.min(8);
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
 

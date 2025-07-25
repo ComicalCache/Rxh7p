@@ -77,14 +77,14 @@ impl Engine {
                 if let Some(time) = config.wtime {
                     let inc = config.winc.unwrap_or(Duration::ZERO);
                     // Just divide remaining time by 30 plus half of the increment.
-                    self.search.move_time = Some((time + inc.div_f64(2.)).div_f64(30.));
+                    self.search.move_time = Some((time + (inc / 2)) / 30);
                 }
             }
             Color::Black => {
                 if let Some(time) = config.btime {
                     let inc = config.binc.unwrap_or(Duration::ZERO);
                     // Just divide remaining time by 30 plus half of the increment.
-                    self.search.move_time = Some((time + inc.div_f64(2.)).div_f64(30.));
+                    self.search.move_time = Some((time + (inc / 2)) / 30);
                 }
             }
         }
@@ -132,13 +132,10 @@ impl Engine {
         let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
 
         // Send reply over UCI.
-        uci_sender::best_move(
-            best_move,
-            if !ponder_moves.is_empty() {
-                Some(ponder_moves)
-            } else {
-                None
-            },
-        );
+        if !ponder_moves.is_empty() {
+            uci_sender::best_move(best_move, Some(ponder_moves));
+        } else {
+            uci_sender::best_move(best_move, None);
+        }
     }
 }
