@@ -10,7 +10,7 @@ use crate::{
     engine::search::Search,
     evaluator, orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::UciSenderMessage,
+    uci::{UciSender, UciSenderMessage},
 };
 
 /// The chess engine itself, it performs the search and data keeping.
@@ -96,6 +96,15 @@ impl Engine {
                     .duration_since(self.search.start_time)
                     .unwrap();
 
+                UciSender::search_info(
+                    depth,
+                    search_time,
+                    self.search.nodes,
+                    // FIXME: gather pv should not be done here on the hot path?
+                    self.pv(pv_depth),
+                    eval,
+                );
+                /*
                 self.message_tx
                     .send(UciSenderMessage::SearchInfo(
                         depth,
@@ -106,6 +115,7 @@ impl Engine {
                         eval,
                     ))
                     .expect("Failed to send message to UCI sender.");
+                */
             }
 
             // Search was cancelled.
