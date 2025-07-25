@@ -6,25 +6,11 @@ The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess.
 
 ## Benchmarking
 
-Benchmarking can be done using cutechess-cli.
+Benchmarking can be done using fastchess.
 
 ```sh
-cutechess-cli
-  -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings order=random policy=round plies=14 -concurrency 8 -ratinginterval 2 -rounds 500 -games 2 -maxmoves 120 -each tc=30+0.5 ponder -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05
+fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -openings file=openings.pgn format=pgn order=random plies=14 -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings.pgn format=pgn order=random plies=14 -each tc=30+0.5 restart=on
 ```
-
-Explaination:
-
-- `-openings file=openings order=random policy=round plies=14`: play a random starting position for 14 plies from the opening book and swap each round.
-- `-concurrency 8`: play eight games in parallel.
-- `-ratinginterval 2`: print the rating every two finished games.
-- `-rounds 500`: play for 500 rounds each two games.
-- `-games 2`: play for 500 rounds each two games.
-- `-maxmoves 120`: if the game has not ended after 120 moves (240 plies) consider it drawn
-- `-each`: apply the following settings to both engines.
-- `tc=30+0.5`: play 30s with .5s increments.
-- `ponder`: allow engines to ponder during opponent moves.
-- `sprt elo0=0 elo1=150 alpha=0.05 beta=0.05`: sequential probability ratio test. Hypthoesis H1 is that engine A is stronger than engine B by at least elo0, hypthesis H0 is that engine A is not stronger than B by at least elo1. If either H0 or H1 are fulfilled with error in alpha and beta the match is stopped.
 
 # Bibliography
 
@@ -32,12 +18,20 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 ### Lichess
 
+<details>
+
 - https://github.com/lichess-bot-devs/lichess-bot/wiki/Configure-lichess-bot
+
+</details>
 
 ### Endgame tables
 
+<details>
+
 - https://www.talkchess.com/forum/viewtopic.php?t=25311
 - https://www.talkchess.com/forum3/viewtopic.php?t=47681
+
+</details>
 
 ### UCI
 
