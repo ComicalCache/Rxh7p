@@ -1,8 +1,4 @@
-use std::{
-    cmp::max,
-    sync::mpsc::{Receiver, Sender},
-    time::SystemTime,
-};
+use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
 use chess::{Board, BoardStatus, ChessMove};
 
@@ -10,7 +6,7 @@ use crate::{
     engine::search::Search,
     evaluator, orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::{UciSender, UciSenderMessage},
+    uci::uci_sender,
 };
 
 /// The chess engine itself, it performs the search and data keeping.
@@ -29,8 +25,6 @@ pub struct Engine {
     /// Information about the current search.
     pub(super) search: Search,
 
-    /// UCI sender. Sends messages to UCI on our behalf to avoid exepnsive stdio on hot path.
-    pub(super) message_tx: Sender<UciSenderMessage>,
     /// Stop receiver. Receives if a stop command was sent.
     pub(super) stop_rx: Receiver<()>,
     /// Ponder receiver. Receives if a ponderhit command was sent.
@@ -39,11 +33,7 @@ pub struct Engine {
 
 impl Engine {
     /// Creates a new engine.
-    pub fn new(
-        message_tx: Sender<UciSenderMessage>,
-        stop_rx: Receiver<()>,
-        ponderhit_rx: Receiver<()>,
-    ) -> Self {
+    pub fn new(stop_rx: Receiver<()>, ponderhit_rx: Receiver<()>) -> Self {
         let board = Board::default();
 
         Engine {
@@ -52,7 +42,6 @@ impl Engine {
             tt: TT::new(),
             position_stack: vec![(board.get_hash(), true)],
             search: Search::default(),
-            message_tx,
             stop_rx,
             ponderhit_rx,
         }
@@ -96,7 +85,7 @@ impl Engine {
                     .duration_since(self.search.start_time)
                     .unwrap();
 
-                UciSender::search_info(
+                uci_sender::search_info(
                     depth,
                     search_time,
                     self.search.nodes,
@@ -104,18 +93,6 @@ impl Engine {
                     self.pv(pv_depth),
                     eval,
                 );
-                /*
-                self.message_tx
-                    .send(UciSenderMessage::SearchInfo(
-                        depth,
-                        search_time,
-                        self.search.nodes,
-                        // FIXME: gather pv should not be done here on the hot path?
-                        self.pv(pv_depth),
-                        eval,
-                    ))
-                    .expect("Failed to send message to UCI sender.");
-                */
             }
 
             // Search was cancelled.

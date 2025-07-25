@@ -5,7 +5,7 @@ use chess::{Board, ChessMove, Color};
 use crate::{
     engine::{Engine, search::Search},
     orderer,
-    uci::{GoCommandConfig, UciSender, UciSenderMessage},
+    uci::{GoCommandConfig, uci_sender},
 };
 
 impl Engine {
@@ -132,7 +132,7 @@ impl Engine {
         let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
 
         // Send reply over UCI.
-        UciSender::best_move(
+        uci_sender::best_move(
             best_move,
             if !ponder_moves.is_empty() {
                 Some(ponder_moves)
@@ -140,17 +140,5 @@ impl Engine {
                 None
             },
         );
-        /*
-        self.message_tx
-            .send(UciSenderMessage::BestMove(
-                best_move,
-                if !ponder_moves.is_empty() {
-                    Some(ponder_moves)
-                } else {
-                    None
-                },
-            ))
-            .expect("Failed to send message to UCI sender.");
-        */
     }
 }
