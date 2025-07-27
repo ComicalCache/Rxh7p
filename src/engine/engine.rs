@@ -195,7 +195,7 @@ impl Engine {
 
         // Quiescence search to avoid event horizon.
         if depth == 0 {
-            return self.quiescence(board, alpha, beta);
+            return Some(self.quiescence(board, alpha, beta));
         }
 
         // Checkmate or stalemate.
@@ -204,13 +204,12 @@ impl Engine {
         }
 
         let prev_alpha = alpha;
-        let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
         if let Some(entry) = self.tt.get(board.get_hash())
             && entry.depth >= depth
         {
-            let eval = entry.value(side);
+            let eval = entry.value(board.side_to_move());
             match entry.flag {
                 TtEntryFlag::Exact => return Some(eval),
                 TtEntryFlag::Beta if eval >= beta => return Some(eval),
@@ -293,7 +292,7 @@ impl Engine {
             flag,
             depth,
             best_mv.expect("PVS didn't find any move to make."),
-            side,
+            board.side_to_move(),
             max_eval,
         );
         self.tt.set(board.get_hash(), tt_entry);
@@ -302,39 +301,29 @@ impl Engine {
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(&mut self, board: Board, mut alpha: i64, beta: i64) -> Option<i64> {
-        if self.stop_search() {
-            return None;
-        }
-
+    fn quiescence(&self, board: Board, mut alpha: i64, beta: i64) -> i64 {
         let mut max_eval = evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
-            return Some(max_eval);
+            return max_eval;
         }
 
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
             // Evaluate new position.
-            if let Some(new_eval) = self.quiescence(board.make_move_new(capture), -beta, -alpha) {
-                // Invert result due to symmetry.
-                let new_eval = -new_eval;
+            let new_eval = -self.quiescence(board.make_move_new(capture), -beta, -alpha);
 
-                max_eval = max(new_eval, max_eval);
-                alpha = max(new_eval, alpha);
+            max_eval = max(new_eval, max_eval);
+            alpha = max(new_eval, alpha);
 
-                // Cut-off, move was too good, opponent would not allow it.
-                if new_eval >= beta {
-                    break;
-                }
-            } else {
-                // If quiescence returns None, search was cancelled, return up the chain.
-                return None;
+            // Cut-off, move was too good, opponent would not allow it.
+            if new_eval >= beta {
+                break;
             }
         }
 
-        Some(max_eval)
+        max_eval
     }
 }
