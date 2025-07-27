@@ -9,7 +9,12 @@ pub fn ready_ok() {
 
 /// id.
 pub fn id() {
-    println!("id name Rxh7+ V1.2");
+    println!(
+        "id name Rxh7+ V{}.{}.{}",
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        env!("CARGO_PKG_VERSION_MINOR"),
+        env!("CARGO_PKG_VERSION_PATCH")
+    );
     println!("id author ComicalCache");
     println!("uciok");
 }
