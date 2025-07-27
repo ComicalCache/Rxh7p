@@ -9,20 +9,22 @@ pub fn ready_ok() {
 
 /// id.
 pub fn id() {
-    println!("id name Rxh7+ V1.2");
+    println!(
+        "id name Rxh7+ V{}.{}.{}",
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        env!("CARGO_PKG_VERSION_MINOR"),
+        env!("CARGO_PKG_VERSION_PATCH")
+    );
     println!("id author ComicalCache");
     println!("uciok");
 }
 
 /// bestmove.
-pub fn best_move(mv: ChessMove, ponder_moves: Option<Vec<ChessMove>>) {
+pub fn best_move(mv: ChessMove, ponder_move: Option<ChessMove>) {
     let mut msg = format!("bestmove {mv}");
 
-    if let Some(ponder_moves) = ponder_moves {
-        msg.push_str(" ponder");
-        for ponder_mv in ponder_moves {
-            msg.push_str(format!(" {ponder_mv}").as_str());
-        }
+    if let Some(mv) = ponder_move {
+        msg.push_str(format!(" ponder {mv}").as_str());
     }
 
     println!("{msg}");

@@ -4,7 +4,6 @@ use chess::{Board, ChessMove, Color};
 
 use crate::{
     engine::{Engine, search::Search},
-    orderer,
     uci::{GoCommandConfig, uci_sender},
 };
 
@@ -126,16 +125,10 @@ impl Engine {
 
         let new_board = self.board.make_move_new(best_move);
 
-        // Find moves to ponder on after playing best move.
-        let ponder_moves = orderer::all(&new_board, 0, &self.tt);
-        // Give a selection of five moves to ponder on.
-        let ponder_moves = ponder_moves.into_iter().take(5).collect::<Vec<ChessMove>>();
-
-        // Send reply over UCI.
-        if !ponder_moves.is_empty() {
-            uci_sender::best_move(best_move, Some(ponder_moves));
-        } else {
-            uci_sender::best_move(best_move, None);
-        }
+        // Send best follow-up as ponder move.
+        uci_sender::best_move(
+            best_move,
+            self.tt.get(new_board.get_hash()).map(|entry| entry.mv),
+        );
     }
 }

@@ -9,7 +9,7 @@ The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess.
 Benchmarking can be done using fastchess.
 
 ```sh
-fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -openings file=openings.pgn format=pgn order=random plies=14 -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new proto=uci cmd=new -engine name=old proto=uci cmd=old -openings file=openings.pgn format=pgn order=random plies=14 -each tc=30+0.5 restart=on
+fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -openings file=openings.pgn format=pgn plies=14 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new cmd=new -engine name=old cmd=old -each tc=30+0.5 restart=on
 ```
 
 # Bibliography
@@ -50,6 +50,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 - https://www.chessprogramming.org/Cutechess-cli
 - https://www.reddit.com/r/ComputerChess/comments/m2ertv/comment/gqirufx
+- https://www.chessprogramming.org/Fastchess_(Game_Manager)
 
 </details>
 

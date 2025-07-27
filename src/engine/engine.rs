@@ -61,12 +61,9 @@ impl Engine {
 
         let mut eval = 0;
 
-        for depth in 1.. {
-            // Search at most to depth 35.
-            if depth > 35 {
-                break;
-            }
-
+        // Use passed depth or at most depth 35. The PVS search stop must not check for depth
+        // because of this. Search extensions will not be affected by this limit however.
+        for depth in 1..self.search.depth.unwrap_or(35) {
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
@@ -155,13 +152,6 @@ impl Engine {
             return true;
         }
 
-        // Depth limit.
-        if let Some(depth) = self.search.depth
-            && self.search.ply > depth
-        {
-            return true;
-        }
-
         // Node limit.
         if let Some(nodes) = self.search.node_limit
             && self.search.nodes > nodes
@@ -188,14 +178,14 @@ impl Engine {
         // Count node as visited.
         self.search.nodes += 1;
 
-        // Return score of 0 if position is a repetition.
+        // Return score of 0 if position is a three-fold repetition.
         if self.repetition() {
             return Some(0);
         }
 
         // Quiescence search to avoid event horizon.
         if depth == 0 {
-            return self.quiescence(board, alpha, beta);
+            return Some(Engine::quiescence(board, alpha, beta));
         }
 
         // Checkmate or stalemate.
@@ -204,13 +194,12 @@ impl Engine {
         }
 
         let prev_alpha = alpha;
-        let side = board.side_to_move();
 
         // If viable entry exists return evaluation.
         if let Some(entry) = self.tt.get(board.get_hash())
             && entry.depth >= depth
         {
-            let eval = entry.value(side);
+            let eval = entry.value(board.side_to_move());
             match entry.flag {
                 TtEntryFlag::Exact => return Some(eval),
                 TtEntryFlag::Beta if eval >= beta => return Some(eval),
@@ -240,13 +229,8 @@ impl Engine {
 
             let mut new_eval;
             if !first_search {
-                // Gather moves here and pass down to avoid having to search moves twice.
-                // This means second search doesn't profit from results of first in terms of
-                // ordering but SEE during ordering is very expensive.
-                let new_moves = Some(orderer::all(&new_board, depth, &self.tt));
-
                 // Perform null-window search on following searches.
-                new_eval = self.pvs(new_board, &new_moves, -alpha - 1, -alpha, depth - 1);
+                new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
 
                 // If the null-window search failed high, repeat with a full search.
                 if let Some(eval) = new_eval
@@ -255,7 +239,7 @@ impl Engine {
                     && -eval > alpha
                     && -eval < beta
                 {
-                    new_eval = self.pvs(new_board, &new_moves, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
                 }
             } else {
                 // Evaluate new position fully if first search.
@@ -298,7 +282,7 @@ impl Engine {
             flag,
             depth,
             best_mv.expect("PVS didn't find any move to make."),
-            side,
+            board.side_to_move(),
             max_eval,
         );
         self.tt.set(board.get_hash(), tt_entry);
@@ -307,39 +291,29 @@ impl Engine {
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(&mut self, board: Board, mut alpha: i64, beta: i64) -> Option<i64> {
-        if self.stop_search() {
-            return None;
-        }
-
+    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
         let mut max_eval = evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
-            return Some(max_eval);
+            return max_eval;
         }
 
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
             // Evaluate new position.
-            if let Some(new_eval) = self.quiescence(board.make_move_new(capture), -beta, -alpha) {
-                // Invert result due to symmetry.
-                let new_eval = -new_eval;
+            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
 
-                max_eval = max(new_eval, max_eval);
-                alpha = max(new_eval, alpha);
+            max_eval = max(new_eval, max_eval);
+            alpha = max(new_eval, alpha);
 
-                // Cut-off, move was too good, opponent would not allow it.
-                if new_eval >= beta {
-                    break;
-                }
-            } else {
-                // If quiescence returns None, search was cancelled, return up the chain.
-                return None;
+            // Cut-off, move was too good, opponent would not allow it.
+            if new_eval >= beta {
+                break;
             }
         }
 
-        Some(max_eval)
+        max_eval
     }
 }
