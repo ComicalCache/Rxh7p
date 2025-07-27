@@ -188,14 +188,14 @@ impl Engine {
         // Count node as visited.
         self.search.nodes += 1;
 
-        // Return score of 0 if position is a repetition.
+        // Return score of 0 if position is a three-fold repetition.
         if self.repetition() {
             return Some(0);
         }
 
         // Quiescence search to avoid event horizon.
         if depth == 0 {
-            return Some(self.quiescence(board, alpha, beta));
+            return Some(Engine::quiescence(board, alpha, beta));
         }
 
         // Checkmate or stalemate.
@@ -301,7 +301,7 @@ impl Engine {
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(&self, board: Board, mut alpha: i64, beta: i64) -> i64 {
+    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
         let mut max_eval = evaluator::evaluate(&board);
 
         // Cut-off, move was too good, opponent would not allow it.
@@ -313,7 +313,7 @@ impl Engine {
 
         for capture in orderer::quiescence(&board) {
             // Evaluate new position.
-            let new_eval = -self.quiescence(board.make_move_new(capture), -beta, -alpha);
+            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
 
             max_eval = max(new_eval, max_eval);
             alpha = max(new_eval, alpha);

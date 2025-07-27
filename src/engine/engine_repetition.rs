@@ -3,7 +3,7 @@ use chess::{Board, ChessMove, Color, Piece};
 use crate::engine::Engine;
 
 impl Engine {
-    /// Checks if the current position is a repetition.
+    /// Checks if the current position is a threefold repetition.
     pub(super) fn repetition(&self) -> bool {
         // Can't be a three fold repetition if not sufficient moves have been played.
         if self.position_stack.len() < 8 {

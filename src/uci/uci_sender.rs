@@ -15,14 +15,11 @@ pub fn id() {
 }
 
 /// bestmove.
-pub fn best_move(mv: ChessMove, ponder_moves: Option<Vec<ChessMove>>) {
+pub fn best_move(mv: ChessMove, ponder_move: Option<ChessMove>) {
     let mut msg = format!("bestmove {mv}");
 
-    if let Some(ponder_moves) = ponder_moves {
-        msg.push_str(" ponder");
-        for ponder_mv in ponder_moves {
-            msg.push_str(format!(" {ponder_mv}").as_str());
-        }
+    if let Some(mv) = ponder_move {
+        msg.push_str(format!(" ponder {mv}").as_str());
     }
 
     println!("{msg}");

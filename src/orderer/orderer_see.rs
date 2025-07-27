@@ -1,5 +1,3 @@
-use std::collections::BinaryHeap;
-
 use chess::{BitBoard, Board, ChessMove, MoveGen, Square};
 
 use crate::{
@@ -8,11 +6,8 @@ use crate::{
 };
 
 /// Orders all captures according to their SEE.
-pub(super) fn see_order_captures(
-    board: &Board,
-    captures: Vec<ChessMove>,
-) -> BinaryHeap<OrdererEntry> {
-    let mut ordered = BinaryHeap::with_capacity(captures.len());
+pub(super) fn see_order_captures(board: &Board, captures: Vec<ChessMove>) -> Vec<OrdererEntry> {
+    let mut ordered = Vec::with_capacity(captures.len());
 
     for capture in &captures {
         ordered.push(OrdererEntry::new(see_capture(board, *capture), *capture));

@@ -1,5 +1,3 @@
-use std::collections::BinaryHeap;
-
 use chess::{Board, ChessMove, EMPTY, MoveGen};
 
 use crate::{
@@ -22,12 +20,12 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
 
     // Get all captures and order them.
     moves.set_iterator_mask(orderer_masks::captures_mask(board));
-    let captures = orderer_see::see_order_captures(board, Vec::from_iter(&mut moves));
+    let mut captures = orderer_see::see_order_captures(board, Vec::from_iter(&mut moves));
 
     moves.set_iterator_mask(!EMPTY);
-    let mut pv_moves = BinaryHeap::new();
-    let mut killer_moves = BinaryHeap::new();
-    let mut bad_captures = BinaryHeap::new();
+    let mut pv_moves = Vec::new();
+    let mut killer_moves = Vec::new();
+    let mut bad_captures = Vec::new();
     let mut remaining_moves = Vec::new();
 
     for mv in moves {
@@ -54,9 +52,13 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
         ret.push(entry.mv);
     }
 
+    // Sort PV hash moves.
+    pv_moves.sort_unstable();
     // Search PV hash moves.
     ret.extend(pv_moves.iter().map(|entry| entry.mv));
 
+    // Sort captures.
+    captures.sort_unstable();
     // Search good and equal captures.
     for entry in captures {
         if entry.value >= 0 {
@@ -67,13 +69,13 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
         }
     }
 
-    // Search killer moves.
+    // Search unsorted killer moves.
     ret.extend(killer_moves.iter().map(|entry| entry.mv));
 
     // Search bad captures.
     ret.extend(bad_captures.iter().map(|entry| entry.mv));
 
-    // Search remaining moves.
+    // Search unsorted remaining moves.
     ret.append(&mut remaining_moves);
 
     ret
