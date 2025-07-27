@@ -50,6 +50,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 - https://www.chessprogramming.org/Cutechess-cli
 - https://www.reddit.com/r/ComputerChess/comments/m2ertv/comment/gqirufx
+- https://www.chessprogramming.org/Fastchess_(Game_Manager)
 
 </details>
 
