@@ -5,13 +5,16 @@ use crate::{
     orderer::{orderer_entry::OrdererEntry, orderer_masks},
 };
 
-/// Orders all captures according to their SEE.
+/// Orders all captures according to their SEE in ascending order.
 pub(super) fn see_order_captures(board: &Board, captures: Vec<ChessMove>) -> Vec<OrdererEntry> {
     let mut ordered = Vec::with_capacity(captures.len());
 
     for capture in &captures {
         ordered.push(OrdererEntry::new(see_capture(board, *capture), *capture));
     }
+
+    // Sort captures.
+    ordered.sort();
 
     ordered
 }
