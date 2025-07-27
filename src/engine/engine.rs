@@ -61,12 +61,9 @@ impl Engine {
 
         let mut eval = 0;
 
-        for depth in 1.. {
-            // Search at most to depth 35.
-            if depth > 35 {
-                break;
-            }
-
+        // Use passed depth or at most depth 35. The PVS search stop must not check for depth
+        // because of this. Search extensions will not be affected by this limit however.
+        for depth in 1..self.search.depth.unwrap_or(35) {
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
@@ -151,13 +148,6 @@ impl Engine {
                 .duration_since(self.search.start_time)
                 .unwrap()
                 > move_time
-        {
-            return true;
-        }
-
-        // Depth limit.
-        if let Some(depth) = self.search.depth
-            && self.search.ply > depth
         {
             return true;
         }

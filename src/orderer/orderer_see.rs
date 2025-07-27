@@ -14,7 +14,7 @@ pub(super) fn see_order_captures(board: &Board, captures: Vec<ChessMove>) -> Vec
     }
 
     // Sort captures.
-    ordered.sort();
+    ordered.sort_unstable();
 
     ordered
 }
