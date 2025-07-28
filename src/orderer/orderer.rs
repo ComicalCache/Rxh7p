@@ -49,8 +49,8 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
 
     // Search principal variation move. Will be doubly in list, second search uses the hashed
     // result.
-    if let Some(entry) = tt.get(board.get_hash()) {
-        ret.push(entry.mv);
+    if let Some(pv) = tt.get(board.get_hash()) {
+        ret.push(pv.mv);
     }
 
     // Sort PV hash moves.

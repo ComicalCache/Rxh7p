@@ -3,7 +3,7 @@ use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 use chess::{Board, BoardStatus, ChessMove};
 
 use crate::{
-    engine::search::Search,
+    engine::search::{self, Search},
     evaluator, orderer,
     tt::{TT, TtEntry, TtEntryFlag},
     uci::{UciSearchStop, uci_sender},
@@ -56,20 +56,29 @@ impl Engine {
         // Always set start time even if no go movetime command was sent.
         self.search.start_time = SystemTime::now();
 
-        let mut eval = 0;
+        // Get previous PV.
+        let mut prev_pv = self.tt.get(self.board.get_hash()).map(|entry| entry.mv);
 
         // Use passed depth or at most depth 35. The PVS search stop must not check for depth
         // because of this. Search extensions will not be affected by this limit however.
+        let mut eval = 0;
         for depth in 1..self.search.depth.unwrap_or(35) {
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
-            // Only set the PV search depth to the current depth and eval to new_eval if the search
-            // was not interrupted.
+            // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
+                // Set the PV search depth to the current depth and eval to new_eval.
                 eval = new_eval;
                 pv_depth = depth;
+
+                // Process PV volatility between iterations.
+                let new_pv = self.tt.get(self.board.get_hash()).map(|entry| entry.mv);
+                if prev_pv != new_pv {
+                    self.search.pv_volatility += 1;
+                }
+                prev_pv = new_pv;
             }
 
             // Send information of iteration but skip first four iterations to decrease traffic.
@@ -83,7 +92,7 @@ impl Engine {
                     depth,
                     search_time,
                     self.search.nodes,
-                    // FIXME: gather pv should not be done here on the hot path?
+                    // FIXME: gather PV should not be done here on the hot path?
                     self.pv(pv_depth),
                     eval,
                 );
@@ -98,7 +107,7 @@ impl Engine {
 
     /// Returns the current principal variation of the internal state.
     fn pv(&self, depth: u16) -> Vec<ChessMove> {
-        // At most print pv of eight plies.
+        // At most print PV of eight plies.
         let depth = depth.min(8);
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
@@ -137,13 +146,23 @@ impl Engine {
         }
 
         // Move time limit.
-        if let Some(move_time) = self.search.move_time
-            && SystemTime::now()
+        if let Some(hard_time) = self.search.hard_move_time {
+            // Safe to unwrap since always both are set.
+            let soft_time = self.search.soft_move_time.unwrap();
+
+            let duration = SystemTime::now()
                 .duration_since(self.search.start_time)
-                .unwrap()
-                > move_time
-        {
-            return true;
+                .unwrap();
+
+            // Always stop when hard limit is reached.
+            if duration > hard_time {
+                return true;
+            }
+
+            // If the PV was not volatile, abide to soft time limit.
+            if self.search.pv_volatility < search::PV_VOLATILITY_THRESHOLD && duration > soft_time {
+                return true;
+            }
         }
 
         // Node limit.
@@ -211,7 +230,7 @@ impl Engine {
 
         let mut first_search = true;
         let mut max_eval = i64::MIN + 1;
-        let mut best_mv = None;
+        let mut best_move = None;
         for mv in moves {
             let new_board = board.make_move_new(*mv);
 
@@ -251,7 +270,7 @@ impl Engine {
 
                 if new_eval > max_eval {
                     max_eval = new_eval;
-                    best_mv = Some(*mv);
+                    best_move = Some(*mv);
                 }
 
                 alpha = max(new_eval, alpha);
@@ -261,10 +280,12 @@ impl Engine {
                     break;
                 }
             } else {
-                // If pvs returns None, search was cancelled, return up the chain.
+                // If PVS returns None, search was cancelled, return up the chain.
                 return None;
             }
         }
+
+        let best_move = best_move.expect("PVS didn't find any move to make.");
 
         // Store entry.
         let flag = match (max_eval <= prev_alpha, max_eval >= beta) {
@@ -272,13 +293,7 @@ impl Engine {
             (_, true) => TtEntryFlag::Beta,
             _ => TtEntryFlag::Exact,
         };
-        let tt_entry = TtEntry::new(
-            flag,
-            depth,
-            best_mv.expect("PVS didn't find any move to make."),
-            board.side_to_move(),
-            max_eval,
-        );
+        let tt_entry = TtEntry::new(flag, depth, best_move, board.side_to_move(), max_eval);
         self.tt.set(board.get_hash(), tt_entry);
 
         Some(max_eval)

@@ -2,6 +2,9 @@ use std::time::{Duration, SystemTime};
 
 use chess::ChessMove;
 
+/// Threshold of pv volatility to cause increased search time.
+pub const PV_VOLATILITY_THRESHOLD: u64 = 3;
+
 /// Contains information about the currently conducted search.
 pub(super) struct Search {
     /// Ponder mode.
@@ -20,12 +23,17 @@ pub(super) struct Search {
     /// When the search started.
     pub(super) start_time: SystemTime,
 
+    /// Count of how often VP changed.
+    pub(super) pv_volatility: u64,
+
     /// Search no ply deeper than this.
     pub(super) depth: Option<u16>,
     /// Search no more nodes than this.
     pub(super) node_limit: Option<u64>,
-    /// Think time limit.
-    pub(super) move_time: Option<Duration>,
+    /// Hard think time limit.
+    pub(super) hard_move_time: Option<Duration>,
+    /// Soft think time limit.
+    pub(super) soft_move_time: Option<Duration>,
 }
 
 impl Default for Search {
@@ -37,9 +45,11 @@ impl Default for Search {
             ply: 0,
             nodes: 0,
             start_time: SystemTime::UNIX_EPOCH,
+            pv_volatility: 0,
             depth: None,
             node_limit: None,
-            move_time: None,
+            hard_move_time: None,
+            soft_move_time: None,
         }
     }
 }
