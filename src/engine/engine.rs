@@ -73,9 +73,9 @@ impl Engine {
                 eval = new_eval;
                 pv_depth = depth;
 
-                // Process PV volatility between iterations.
+                // Process PV volatility between iterations starting at depth 3.
                 let new_pv = self.tt.get(self.board.get_hash()).map(|entry| entry.mv);
-                if prev_pv != new_pv {
+                if prev_pv != new_pv && depth > 3 {
                     self.search.pv_volatility += 1;
                 }
                 prev_pv = new_pv;
