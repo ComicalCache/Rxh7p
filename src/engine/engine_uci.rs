@@ -71,22 +71,26 @@ impl Engine {
 
         // Set time appropriately to player clocks.
         // FIXME: improve time management.
-        match self.board.side_to_move() {
+        if let Some((time, inc)) = match self.board.side_to_move() {
             Color::White => {
                 if let Some(time) = config.wtime {
-                    let inc = config.winc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 30 plus half of the increment.
-                    self.search.move_time = Some((time + (inc / 2)) / 30);
+                    Some((time, config.winc.unwrap_or(Duration::ZERO)))
+                } else {
+                    None
                 }
             }
             Color::Black => {
                 if let Some(time) = config.btime {
-                    let inc = config.binc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 30 plus half of the increment.
-                    self.search.move_time = Some((time + (inc / 2)) / 30);
+                    Some((time, config.binc.unwrap_or(Duration::ZERO)))
+                } else {
+                    None
                 }
             }
+        } {
+            // Just divide remaining time by 20 plus half of the increment.
+            self.search.move_time = Some((time / 20) + (inc / 2));
         }
+
         // Go movetime was set.
         if let Some(time) = config.move_time {
             if let Some(move_time) = self.search.move_time {
