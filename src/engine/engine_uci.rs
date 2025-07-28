@@ -4,6 +4,7 @@ use chess::{Board, ChessMove, Color};
 
 use crate::{
     engine::{Engine, search::Search},
+    evaluator,
     uci::{GoCommandConfig, uci_sender},
 };
 
@@ -96,20 +97,12 @@ impl Engine {
 
     fn set_move_time(&mut self, config: &GoCommandConfig) {
         if let Some((time, inc)) = match self.board.side_to_move() {
-            Color::White => {
-                if let Some(time) = config.wtime {
-                    Some((time, config.winc.unwrap_or(Duration::ZERO)))
-                } else {
-                    None
-                }
-            }
-            Color::Black => {
-                if let Some(time) = config.btime {
-                    Some((time, config.binc.unwrap_or(Duration::ZERO)))
-                } else {
-                    None
-                }
-            }
+            Color::White => config
+                .wtime
+                .map(|time| (time, config.winc.unwrap_or(Duration::ZERO))),
+            Color::Black => config
+                .btime
+                .map(|time| (time, config.binc.unwrap_or(Duration::ZERO))),
         } {
             // Just divide remaining time by 20 plus 3/4th of the increment.
             self.search.hard_move_time = Some((time / 20) + (3 * inc / 4));
@@ -131,18 +124,33 @@ impl Engine {
         // Set soft move time.
         self.search.soft_move_time = self.search.hard_move_time;
 
+        // Decreases search time towards the beginning and end of the game and increases towards to
+        // middle of the game. Game phase is calculated early game = 24 -> end game = 0.
+        const MOVE_TIME_FACTORS: [f64; 25] = [
+            0.8, 0.8, 0.8, 0.8, 0.9, 0.9, 0.9, 0.9, 1., 1., 1., 1., 1., 1., 1.2, 1.2, 1.2, 1.2,
+            1.2, 1.2, 1.2, 1.2, 1., 0.8, 0.8,
+        ];
+
         if let Some(time) = self.search.hard_move_time {
-            let ten_ms = Duration::from_millis(10);
-            let seventy_ms = Duration::from_millis(70);
+            // Scale time by game phase.
+            let time = (time.as_millis_f64()
+                * MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize])
+                as u64;
 
-            // Subtract 10ms from the hard time limit to avoid losing by time.
-            if time > ten_ms {
-                self.search.hard_move_time = Some(time - ten_ms);
-                self.search.soft_move_time = Some(time - ten_ms);
+            let safety_margin = 10;
+            let soft_margin = 65;
 
-                // Set soft move time to be 70ms less than hard move time.
-                if self.search.hard_move_time.unwrap() > seventy_ms {
-                    self.search.soft_move_time = Some(time - ten_ms - seventy_ms);
+            let hard_move_time = time - safety_margin;
+            let soft_move_time = time - safety_margin - soft_margin;
+
+            // Subtract a safety margin from the hard time limit to avoid losing by time.
+            if time > safety_margin {
+                self.search.hard_move_time = Some(Duration::from_millis(hard_move_time));
+                self.search.soft_move_time = Some(Duration::from_millis(hard_move_time));
+
+                // Set soft move time to be soft margin less than hard move time.
+                if hard_move_time > soft_margin {
+                    self.search.soft_move_time = Some(Duration::from_millis(soft_move_time));
                 }
             }
         }

@@ -1,4 +1,4 @@
-#![feature(iter_map_windows)]
+#![feature(duration_millis_float)]
 
 use std::{sync::mpsc, thread};
 

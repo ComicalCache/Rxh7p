@@ -57,8 +57,8 @@ impl Engine {
         // Always set start time even if no go movetime command was sent.
         self.search.start_time = SystemTime::now();
 
-        // Get previous PV.
-        let threshold = 3 * piece_value(&self.board, Piece::Pawn) / 4;
+        // Search volatility threshold.
+        let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
         // Use passed depth or at most depth 35. The PVS search stop must not check for depth
         // because of this. Search extensions will not be affected by this limit however.
@@ -70,8 +70,8 @@ impl Engine {
             // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
-                // If eval changes a lot, extend sort time.
-                if (eval - new_eval).abs() > threshold {
+                // If eval changes a lot after 3rd ply, extend sort time.
+                if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
                     self.search.search_volatility = true;
                 }
 
