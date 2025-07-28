@@ -62,9 +62,8 @@ impl Engine {
     fn go_prelude(&mut self, config: GoCommandConfig) {
         self.search = Search::default();
 
-        // Reset stop_rx and ponderhit rx as they might cause the next search to short circuit.
-        while self.stop_rx.try_recv().is_ok() {}
-        while self.ponderhit_rx.try_recv().is_ok() {}
+        // Reset search_stop_rx as it might cause the next search to short circuit.
+        while self.search_stop_rx.try_recv().is_ok() {}
 
         // Set moves to search.
         self.search.moves = config.searchmoves;

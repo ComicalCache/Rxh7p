@@ -6,7 +6,7 @@ use crate::{
     engine::search::Search,
     evaluator, orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::uci_sender,
+    uci::{UciSearchStop, uci_sender},
 };
 
 /// The chess engine itself, it performs the search and data keeping.
@@ -25,15 +25,13 @@ pub struct Engine {
     /// Information about the current search.
     pub(super) search: Search,
 
-    /// Stop receiver. Receives if a stop command was sent.
-    pub(super) stop_rx: Receiver<()>,
-    /// Ponder receiver. Receives if a ponderhit command was sent.
-    pub(super) ponderhit_rx: Receiver<()>,
+    /// Channel for receiving the search stop commands.
+    pub(super) search_stop_rx: Receiver<UciSearchStop>,
 }
 
 impl Engine {
     /// Creates a new engine.
-    pub fn new(stop_rx: Receiver<()>, ponderhit_rx: Receiver<()>) -> Self {
+    pub fn new(search_stop_rx: Receiver<UciSearchStop>) -> Self {
         let board = Board::default();
 
         Engine {
@@ -42,8 +40,7 @@ impl Engine {
             tt: TT::new(),
             position_stack: vec![(board.get_hash(), true)],
             search: Search::default(),
-            stop_rx,
-            ponderhit_rx,
+            search_stop_rx,
         }
     }
 
@@ -123,13 +120,10 @@ impl Engine {
     /// Checks if a stop condition for search is fulfilled.
     fn stop_search(&mut self) -> bool {
         // Received ponderhit command.
-        if self.ponderhit_rx.try_recv().is_ok() {
-            self.search.ponder = false;
-        }
-
-        // Received stop command.
-        if self.stop_rx.try_recv().is_ok() {
-            self.search.stop_infinite = true;
+        match self.search_stop_rx.try_recv() {
+            Ok(UciSearchStop::Stop) => self.search.stop_infinite = true,
+            Ok(UciSearchStop::Ponderhit) => self.search.ponder = false,
+            _ => {}
         }
 
         // Stop command (infinite search, quit or ponder miss).

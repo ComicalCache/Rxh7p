@@ -2,25 +2,27 @@ use std::sync::mpsc::Sender;
 
 use crate::uci::{UciCommand, uci_sender};
 
+pub enum UciSearchStop {
+    Ponderhit,
+    Stop,
+}
+
 /// Struct acting as a UCI receiver. It runs in its own thread and communicates with the engine via
-/// message passing. The stop and ponderhit command require their own channels since they need to be
+/// message passing. The stop and ponderhit command require their own channel since they need to be
 /// receivable by the engine while searching.
 pub struct UciReceiver {
     /// Channel for sending received commands to the engine.
     cmd_tx: Sender<UciCommand>,
-    /// Channel for sending the stop command to the engine.
-    stop_tx: Sender<()>,
-    /// Channel for sending the ponderhit command to the engine.
-    ponderhit_tx: Sender<()>,
+    /// Channel for sending the search stop commands to the engine.
+    search_stop_tx: Sender<UciSearchStop>,
 }
 
 impl UciReceiver {
     /// Creates a new UCI receiver.
-    pub fn new(cmd_tx: Sender<UciCommand>, stop_tx: Sender<()>, ponderhit_tx: Sender<()>) -> Self {
+    pub fn new(cmd_tx: Sender<UciCommand>, search_stop_tx: Sender<UciSearchStop>) -> Self {
         UciReceiver {
             cmd_tx,
-            stop_tx,
-            ponderhit_tx,
+            search_stop_tx,
         }
     }
 
@@ -48,18 +50,18 @@ impl UciReceiver {
                 UciCommand::Uci => uci_sender::id(),
                 // Send here since main is busy.
                 UciCommand::Stop => self
-                    .stop_tx
-                    .send(())
+                    .search_stop_tx
+                    .send(UciSearchStop::Stop)
                     .expect("Failed to send stop message to engine"),
                 UciCommand::Ponderhit => self
-                    .ponderhit_tx
-                    .send(())
+                    .search_stop_tx
+                    .send(UciSearchStop::Ponderhit)
                     .expect("Failed to send ponderhit message to engine"),
                 // Send stop in case the engine is searching. The loop in main quits when this loop
                 // ends since the tx value gets dropped.
                 UciCommand::Quit => {
-                    self.stop_tx
-                        .send(())
+                    self.search_stop_tx
+                        .send(UciSearchStop::Stop)
                         .expect("Failed to send stop message to engine");
                     break;
                 }
