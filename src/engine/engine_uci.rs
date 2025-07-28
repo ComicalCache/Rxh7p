@@ -133,16 +133,16 @@ impl Engine {
 
         if let Some(time) = self.search.hard_move_time {
             let ten_ms = Duration::from_millis(10);
-            let fifty_ms = Duration::from_millis(50);
+            let seventy_ms = Duration::from_millis(70);
 
             // Subtract 10ms from the hard time limit to avoid losing by time.
             if time > ten_ms {
                 self.search.hard_move_time = Some(time - ten_ms);
                 self.search.soft_move_time = Some(time - ten_ms);
 
-                // Set soft move time to be 50ms less than hard move time.
-                if self.search.hard_move_time.unwrap() > fifty_ms {
-                    self.search.soft_move_time = Some(time - ten_ms - fifty_ms);
+                // Set soft move time to be 70ms less than hard move time.
+                if self.search.hard_move_time.unwrap() > seventy_ms {
+                    self.search.soft_move_time = Some(time - ten_ms - seventy_ms);
                 }
             }
         }

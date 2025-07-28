@@ -21,7 +21,7 @@ pub(super) fn see_order_captures(board: &Board, captures: Vec<ChessMove>) -> Vec
 
 /// Performs SEE on a capture.
 fn see_capture(board: &Board, capture: ChessMove) -> i64 {
-    let captured_value = evaluator::piece_value(
+    let captured_value = evaluator::piece_square_value(
         board,
         // Piece value of opponent.
         !board.side_to_move(),
@@ -38,7 +38,7 @@ fn see(board: &Board, square: Square) -> i64 {
 
     let smallest_attack = smallest_attack(board, square);
     if let Some(smallest_attack) = smallest_attack {
-        let captured_value = evaluator::piece_value(
+        let captured_value = evaluator::piece_square_value(
             board,
             // Piece value of opponent.
             !board.side_to_move(),
@@ -69,7 +69,7 @@ fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
     let mut smallest_attack_value = i64::MAX;
 
     for capture in captures {
-        let curr_value = evaluator::piece_value(
+        let curr_value = evaluator::piece_square_value(
             board,
             // Piece value of self.
             board.side_to_move(),

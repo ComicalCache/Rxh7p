@@ -1,10 +1,11 @@
 use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
-use chess::{Board, BoardStatus, ChessMove};
+use chess::{Board, BoardStatus, ChessMove, Piece};
 
 use crate::{
-    engine::search::{self, Search},
-    evaluator, orderer,
+    engine::search::Search,
+    evaluator::{self, piece_value},
+    orderer,
     tt::{TT, TtEntry, TtEntryFlag},
     uci::{UciSearchStop, uci_sender},
 };
@@ -57,7 +58,7 @@ impl Engine {
         self.search.start_time = SystemTime::now();
 
         // Get previous PV.
-        let mut prev_pv = self.tt.get(self.board.get_hash()).map(|entry| entry.mv);
+        let threshold = 3 * piece_value(&self.board, Piece::Pawn) / 4;
 
         // Use passed depth or at most depth 35. The PVS search stop must not check for depth
         // because of this. Search extensions will not be affected by this limit however.
@@ -69,16 +70,14 @@ impl Engine {
             // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
+                // If eval changes a lot, extend sort time.
+                if (eval - new_eval).abs() > threshold {
+                    self.search.search_volatility = true;
+                }
+
                 // Set the PV search depth to the current depth and eval to new_eval.
                 eval = new_eval;
                 pv_depth = depth;
-
-                // Process PV volatility between iterations starting at depth 3.
-                let new_pv = self.tt.get(self.board.get_hash()).map(|entry| entry.mv);
-                if prev_pv != new_pv && depth > 3 {
-                    self.search.pv_volatility += 1;
-                }
-                prev_pv = new_pv;
             }
 
             // Send information of iteration but skip first four iterations to decrease traffic.
@@ -159,8 +158,8 @@ impl Engine {
                 return true;
             }
 
-            // If the PV was not volatile, abide to soft time limit.
-            if self.search.pv_volatility < search::PV_VOLATILITY_THRESHOLD && duration > soft_time {
+            // If the search was not volatile, abide to soft time limit.
+            if !self.search.search_volatility && duration > soft_time {
                 return true;
             }
         }

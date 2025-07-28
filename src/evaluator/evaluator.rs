@@ -17,14 +17,38 @@ fn game_phase_value(piece: Piece) -> i64 {
     }
 }
 
-/// Returns the value of a type of piece.
-pub fn piece_value(board: &Board, color: Color, piece: Piece, square: Square) -> i64 {
-    let mut tapered_eval = 0;
+/// Calculates the tapered evaluation.
+fn tapered_eval(tween: i64, mid_game_eval: i64, end_game_eval: i64) -> i64 {
+    let mid_game_phase = tween.min(24);
+    let end_game_phase = 24 - mid_game_phase;
+    (mid_game_eval * mid_game_phase + end_game_eval * end_game_phase) / 24
+}
+
+/// Returns the value of a piece.
+pub fn piece_value(board: &Board, piece: Piece) -> i64 {
+    let mut tween = 0;
 
     // Calculate game phase.
     let phase_pieces = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
     for phase_piece in phase_pieces {
-        tapered_eval += board.pieces(phase_piece).popcnt() as i64 * game_phase_value(phase_piece);
+        tween += board.pieces(phase_piece).popcnt() as i64 * game_phase_value(phase_piece);
+    }
+
+    // Get piece value.
+    let mid_game_value = MID_GAME_PIECE_VALUES[piece];
+    let end_game_value = END_GAME_PIECE_VALUES[piece];
+
+    tapered_eval(tween, mid_game_value, end_game_value)
+}
+
+/// Returns the value of a type of piece on a square.
+pub fn piece_square_value(board: &Board, color: Color, piece: Piece, square: Square) -> i64 {
+    let mut tween = 0;
+
+    // Calculate game phase.
+    let phase_pieces = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
+    for phase_piece in phase_pieces {
+        tween += board.pieces(phase_piece).popcnt() as i64 * game_phase_value(phase_piece);
     }
 
     // Get piece value.
@@ -32,10 +56,7 @@ pub fn piece_value(board: &Board, color: Color, piece: Piece, square: Square) ->
     mid_game_value += MID_GAME_PIECE_VALUES[piece];
     end_game_value += END_GAME_PIECE_VALUES[piece];
 
-    // Tapered evaluation.
-    let mid_game_phase = tapered_eval.min(24);
-    let end_game_phase = 24 - mid_game_phase;
-    (mid_game_value * mid_game_phase + end_game_value * end_game_phase) / 24
+    tapered_eval(tween, mid_game_value, end_game_value)
 }
 
 /// Evaluates the current board.
@@ -57,7 +78,7 @@ pub fn evaluate(board: &Board) -> i64 {
         Piece::King,
     ];
 
-    let mut tapered_eval = 0;
+    let mut tween = 0;
 
     // Own value.
     let mut own_mid_game_value = 0;
@@ -70,7 +91,7 @@ pub fn evaluate(board: &Board) -> i64 {
             own_end_game_value += end + END_GAME_PIECE_VALUES[piece];
 
             // Increase tapered evalauation towards end game for each piece.
-            tapered_eval += game_phase_value(piece);
+            tween += game_phase_value(piece);
         }
     }
 
@@ -85,7 +106,7 @@ pub fn evaluate(board: &Board) -> i64 {
             opponent_end_game_value += end + END_GAME_PIECE_VALUES[piece];
 
             // Increase tapered evalauation towards end game for each piece.
-            tapered_eval += game_phase_value(piece);
+            tween += game_phase_value(piece);
         }
     }
 
@@ -93,8 +114,5 @@ pub fn evaluate(board: &Board) -> i64 {
     let mid_game_eval = own_mid_game_value - opponent_mid_game_value;
     let end_game_eval = own_end_game_value - opponent_end_game_value;
 
-    // Tapered evaluation.
-    let mid_game_phase = tapered_eval.min(24);
-    let end_game_phase = 24 - mid_game_phase;
-    (mid_game_eval * mid_game_phase + end_game_eval * end_game_phase) / 24
+    tapered_eval(tween, mid_game_eval, end_game_eval)
 }
