@@ -21,7 +21,7 @@ pub struct GoCommandConfig {
     pub moves_to_go: u64,
     */
     /// Search x plies.
-    pub depth: Option<u16>,
+    pub depth: Option<usize>,
     /// Search x nodes.
     pub nodes: Option<u64>,
     /* TODO: implement search for mate.

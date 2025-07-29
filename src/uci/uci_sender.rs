@@ -31,7 +31,7 @@ pub fn best_move(mv: ChessMove, ponder_move: Option<ChessMove>) {
 }
 
 /// General info message.
-pub fn search_info(depth: u16, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
+pub fn search_info(depth: usize, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
     // FIXME: seldepth, refutation, currline and score mate should be sent.
     let mut msg = format!(
         "info depth {depth} time {} nodes {nodes} nps {} score cp {score_cp}",

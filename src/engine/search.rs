@@ -13,7 +13,7 @@ pub(super) struct Search {
     pub(super) stop_infinite: bool,
 
     /// Ply of played moves during search.
-    pub(super) ply: u16,
+    pub(super) ply: usize,
     /// Count of nodes searched.
     pub(super) nodes: u64,
 
@@ -24,7 +24,7 @@ pub(super) struct Search {
     pub(super) volatility: bool,
 
     /// Search no ply deeper than this.
-    pub(super) depth: Option<u16>,
+    pub(super) depth: Option<usize>,
     /// Search no more nodes than this.
     pub(super) node_limit: Option<u64>,
     /// Hard think time limit.

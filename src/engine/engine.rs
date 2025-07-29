@@ -2,6 +2,9 @@ use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
 use chess::{Board, BoardStatus, ChessMove, Piece};
 
+#[cfg(feature = "logging")]
+use crate::engine::search_log_entry::{MoveTimeLimitKind, SearchLogEntry};
+
 use crate::{
     engine::search::Search,
     evaluator::{self, piece_value},
@@ -28,6 +31,10 @@ pub struct Engine {
 
     /// Channel for receiving the search stop commands.
     pub(super) search_stop_rx: Receiver<UciSearchStop>,
+
+    #[cfg(feature = "logging")]
+    /// Contains a log about the searches.
+    pub search_log: Vec<SearchLogEntry>,
 }
 
 impl Engine {
@@ -46,6 +53,10 @@ impl Engine {
             position_stack,
             search: Search::default(),
             search_stop_rx,
+
+            #[cfg(feature = "logging")]
+            // Preallocate 120 plys to avoid many memory allocations early on.
+            search_log: Vec::with_capacity(120),
         }
     }
 
@@ -113,16 +124,16 @@ impl Engine {
     }
 
     /// Returns the current principal variation of the internal state.
-    fn pv(&mut self, depth: u16) -> Vec<ChessMove> {
+    fn pv(&mut self, depth: usize) -> Vec<ChessMove> {
         // At most print PV of eight plies.
         let depth = depth.min(8);
-        let mut pv = Vec::with_capacity(depth as usize);
+        let mut pv = Vec::with_capacity(depth);
         let mut temp_board = self.board;
 
         let mut idx = 0;
         // Traverse the TT until the searched depth and gather the PV.
         while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
-            && idx < u64::from(depth)
+            && idx < depth
         {
             // Increment PV length at the beginning to be able to fully "unwind" the position stack.
             idx += 1;
@@ -179,11 +190,25 @@ impl Engine {
 
             // Always stop when hard limit is reached.
             if duration > hard_time {
+                #[cfg(feature = "logging")]
+                {
+                    // Save to unwrap since log entry was added before.
+                    self.search_log.last_mut().unwrap().time_limit_kind =
+                        Some(MoveTimeLimitKind::Hard);
+                }
+
                 return true;
             }
 
             // If the search was not volatile, abide to soft time limit.
             if !self.search.volatility && duration > soft_time {
+                #[cfg(feature = "logging")]
+                {
+                    // Save to unwrap since log entry was added before.
+                    self.search_log.last_mut().unwrap().time_limit_kind =
+                        Some(MoveTimeLimitKind::Soft);
+                }
+
                 return true;
             }
         }
@@ -205,7 +230,7 @@ impl Engine {
         searchmoves: Option<&Vec<ChessMove>>,
         mut alpha: i64,
         beta: i64,
-        depth: u16,
+        depth: usize,
     ) -> Option<i64> {
         if self.stop_search() {
             return None;
@@ -233,7 +258,7 @@ impl Engine {
 
         // If viable entry exists return evaluation.
         if let Some(entry) = self.tt.get(board.get_hash())
-            && entry.depth >= depth
+            && entry.depth as usize >= depth
         {
             let eval = entry.value(board.side_to_move());
             match entry.flag {
@@ -316,6 +341,9 @@ impl Engine {
             (_, true) => TtEntryFlag::Beta,
             _ => TtEntryFlag::Exact,
         };
+
+        // Safe to unwrap, depth will never exceed 2^16...
+        let depth = u16::try_from(depth).unwrap();
         let tt_entry = TtEntry::new(flag, depth, best_move, board.side_to_move(), max_eval);
         self.tt.set(board.get_hash(), tt_entry);
 

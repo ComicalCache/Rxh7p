@@ -55,6 +55,10 @@ impl Engine {
     /// Performes a received UCI go command search.
     pub fn go(&mut self, config: GoCommandConfig) {
         self.go_prelude(config);
+
+        #[cfg(feature = "logging")]
+        self.go_log_prelude();
+
         self.iterative_deepening();
         self.go_epilogue();
     }

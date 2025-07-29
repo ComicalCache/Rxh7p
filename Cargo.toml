@@ -1,8 +1,11 @@
 [package]
 name = "Rxh7p"
-version = "1.2.2"
+version = "1.2.3"
 edition = "2024"
 
 [dependencies]
 chess = "3.2.0"
 fnv = "1.0.7"
+
+[features]
+logging = []

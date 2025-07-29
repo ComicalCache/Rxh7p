@@ -12,7 +12,7 @@ use crate::{
 /// 4. Killer moves.
 /// 5. Bad captures.
 /// 6. Remaining moves (random order).
-pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
+pub fn all(board: &Board, depth: usize, tt: &TT) -> Vec<ChessMove> {
     let mut moves = MoveGen::new_legal(board);
 
     // Plus one for principal variation move.
@@ -33,11 +33,11 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
         if let Some(entry) = tt.get(board.make_move_new(mv).get_hash()) {
             match entry.flag {
                 // PV move at higher or equal depth.
-                TtEntryFlag::Exact if entry.depth >= depth => {
+                TtEntryFlag::Exact if entry.depth as usize >= depth => {
                     pv_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv));
                 }
                 // Killer move at higher or equal depth.
-                TtEntryFlag::Beta if entry.depth >= depth => {
+                TtEntryFlag::Beta if entry.depth as usize >= depth => {
                     killer_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv));
                 }
                 _ => remaining_moves.push(mv),
