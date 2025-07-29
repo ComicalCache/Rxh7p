@@ -120,14 +120,14 @@ impl Engine {
         while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
             && idx < depth as u64
         {
+            // Increment PV length at the beginning to be able to fully "unwind" the position stack.
+            idx += 1;
+
             // Add new position to position stack to check for threefold repetition.
             let new_board = temp_board.make_move_new(mv);
             let irreversible = Engine::move_is_irreversible(&temp_board, &new_board, mv);
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
-
-            idx += 1;
-
             // Only add the position to the PV if it is not a threefold repetition.
             if !self.repetition() {
                 pv.push(mv);
