@@ -35,11 +35,15 @@ impl Engine {
     pub fn new(search_stop_rx: Receiver<UciSearchStop>) -> Self {
         let board = Board::default();
 
+        // Preallocate 120 plys to avoid many memory allocations early on.
+        let mut position_stack = Vec::with_capacity(120);
+        position_stack.push((board.get_hash(), true));
+
         Engine {
             initial_board: board.get_hash(),
             board,
             tt: TT::new(),
-            position_stack: vec![(board.get_hash(), true)],
+            position_stack,
             search: Search::default(),
             search_stop_rx,
         }
@@ -105,7 +109,7 @@ impl Engine {
     }
 
     /// Returns the current principal variation of the internal state.
-    fn pv(&self, depth: u16) -> Vec<ChessMove> {
+    fn pv(&mut self, depth: u16) -> Vec<ChessMove> {
         // At most print PV of eight plies.
         let depth = depth.min(8);
         let mut pv = Vec::with_capacity(depth as usize);
@@ -113,13 +117,29 @@ impl Engine {
 
         let mut idx = 0;
         // Traverse the TT until the searched depth and gather the PV.
-        while let Some(entry) = self.tt.get(temp_board.get_hash())
+        while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
             && idx < depth as u64
         {
-            pv.push(entry.mv);
-            temp_board = temp_board.make_move_new(entry.mv);
+            // Add new position to position stack to check for threefold repetition.
+            let new_board = temp_board.make_move_new(mv);
+            let irreversible = Engine::move_is_irreversible(&temp_board, &new_board, mv);
+            self.position_stack
+                .push((new_board.get_hash(), irreversible));
 
             idx += 1;
+
+            // Only add the position to the PV if it is not a threefold repetition.
+            if !self.repetition() {
+                pv.push(mv);
+                temp_board = new_board;
+            } else {
+                break;
+            }
+        }
+
+        // Remove PV positions from the positions stack.
+        for _ in 0..idx {
+            self.position_stack.pop();
         }
 
         pv
