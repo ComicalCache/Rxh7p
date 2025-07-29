@@ -71,7 +71,7 @@ fn write_logs(log_path: String, engine: Engine) {
 
     if let Err(err) = writeln!(
         &mut log_file,
-        "=== START LOG ===\nply,game phase,soft move time,hard move time,time limit kind"
+        "=== START LOG ===\nply,depth,game phase,soft move time,hard move time,time limit kind"
     ) {
         panic!("Failed to write to log file: {err}");
     }

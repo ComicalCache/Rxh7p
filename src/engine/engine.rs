@@ -118,6 +118,12 @@ impl Engine {
 
             // Search was cancelled.
             if new_eval.is_none() {
+                #[cfg(feature = "logging")]
+                {
+                    // Save to unwrap since log entry was added before.
+                    self.search_log.last_mut().unwrap().depth = pv_depth;
+                }
+
                 break;
             }
         }
