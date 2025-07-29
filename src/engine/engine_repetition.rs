@@ -43,6 +43,7 @@ impl Engine {
             || (board_before.en_passant().is_none() && board_after.en_passant().is_some());
 
         // Pawn moves are not reversible. This also encompases en-passant moves and promotions.
+        // Save to unwrap since a piece must be standing on the source of the move.
         let pawn_move = board_before.piece_on(mv.get_source()).unwrap() == Piece::Pawn;
 
         // Captures are not reversible.

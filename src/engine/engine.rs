@@ -64,10 +64,14 @@ impl Engine {
         // Search volatility threshold.
         let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
-        // Use passed depth or at most depth 35. The PVS search stop must not check for depth
-        // because of this. Search extensions will not be affected by this limit however.
         let mut eval = 0;
-        for depth in 1..self.search.depth.unwrap_or(35) {
+        for depth in 1.. {
+            // Use passed depth or at most depth 35. The PVS search stop must not check for depth
+            // because of this. Search extensions will not be affected by this limit however.
+            if !self.search.ponder && depth >= self.search.depth.unwrap_or(35) {
+                break;
+            }
+
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
 

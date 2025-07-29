@@ -25,6 +25,7 @@ fn see_capture(board: &Board, capture: ChessMove) -> i64 {
         board,
         // Piece value of opponent.
         !board.side_to_move(),
+        // FIXME: this panics if the capture is a en-passant.
         board.piece_on(capture.get_dest()).unwrap(),
         capture.get_dest(),
     );
@@ -42,6 +43,7 @@ fn see(board: &Board, square: Square) -> i64 {
             board,
             // Piece value of opponent.
             !board.side_to_move(),
+            // FIXME: this panics if the capture is a en-passant.
             board.piece_on(smallest_attack.get_dest()).unwrap(),
             smallest_attack.get_dest(),
         );
@@ -73,6 +75,7 @@ fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
             board,
             // Piece value of self.
             board.side_to_move(),
+            // FIXME: this panics if the capture is a en-passant.
             board.piece_on(capture.get_source()).unwrap(),
             capture.get_source(),
         );

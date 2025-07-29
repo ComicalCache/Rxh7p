@@ -37,7 +37,7 @@ impl Engine {
         }
 
         // Apply all moves on the start board and add moves to the position stack.
-        // Safe to unwrap as it was tested before.
+        // Safe to unwrap as it was tested for none before.
         for mv in moves.unwrap() {
             let new_board = board.make_move_new(mv);
 

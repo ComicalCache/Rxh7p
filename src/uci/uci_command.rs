@@ -97,7 +97,7 @@ impl UciCommand {
     fn parse_go<'a>(mut args: impl Iterator<Item = &'a str>) -> UciCommand {
         /// Helper function to parse an argument to a type.
         fn num<T: FromStr>(arg: Option<&str>, cmd_name: &str, kind: &str) -> T {
-            arg.unwrap_or_else(|| panic!("Expected seconds from go {cmd_name} command"))
+            arg.unwrap_or_else(|| panic!("Expected {kind} from go {cmd_name} command"))
                 .parse::<T>()
                 .unwrap_or_else(|_| {
                     panic!("Expected a valid number of {kind} from the go {cmd_name} command")
