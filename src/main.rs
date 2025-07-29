@@ -1,4 +1,4 @@
-#![feature(iter_map_windows)]
+#![feature(duration_millis_float)]
 
 use std::{sync::mpsc, thread};
 
@@ -6,7 +6,7 @@ use chess::Board;
 
 use crate::{
     engine::Engine,
-    uci::{UciCommand, UciReceiver, uci_sender},
+    uci::{UciCommand, UciReceiver, UciSearchStop, uci_sender},
 };
 
 mod engine;
@@ -17,12 +17,11 @@ mod uci;
 
 fn main() {
     let (uci_receiver_tx, uci_receivre_rx) = mpsc::channel::<UciCommand>();
-    let (stop_tx, stop_rx) = mpsc::channel::<()>();
-    let (ponderhit_tx, ponderhit_rx) = mpsc::channel::<()>();
-    let mut engine = Engine::new(stop_rx, ponderhit_rx);
+    let (search_stop_tx, search_stop_rx) = mpsc::channel::<UciSearchStop>();
+    let mut engine = Engine::new(search_stop_rx);
 
     let uci_receiver_thread = thread::spawn(|| {
-        UciReceiver::new(uci_receiver_tx, stop_tx, ponderhit_tx).start();
+        UciReceiver::new(uci_receiver_tx, search_stop_tx).start();
     });
 
     while let Ok(command) = uci_receivre_rx.recv() {
@@ -32,7 +31,7 @@ fn main() {
             // Simple handshake by the receiver.
             UciCommand::Uci => unreachable!("Received uci command"),
             UciCommand::IsReady => uci_sender::ready_ok(),
-            UciCommand::UciNewGame => engine.init(Board::default()),
+            UciCommand::UciNewGame => engine.uci_init(Board::default()),
             UciCommand::Position(board, moves) => engine.uci_position(board, moves),
             UciCommand::Go(config) => engine.go(config),
             // The receiver sends a message via MPSC channels.

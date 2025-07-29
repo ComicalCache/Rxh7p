@@ -1,7 +1,7 @@
 Elo difference: -9.4 +/- 16.1, LOS: 12.8 %, DrawRatio: 43.7 %
 SPRT: llr -2.12 (-71.9%), lbound -2.94, ubound 2.94
 
-Player: Rxh7p V1.2.0
+Player: Rxh7p v1.2.0
    "Draw by 3-fold repetition": 391
    "Draw by fifty moves rule": 19
    "Draw by insufficient mating material": 27
@@ -10,7 +10,7 @@ Player: Rxh7p V1.2.0
    "Loss: White mates": 180
    "Win: Black mates": 131
    "Win: White mates": 137
-Player: Rxh7p V1.1.0
+Player: Rxh7p v1.1.0
    "Draw by 3-fold repetition": 391
    "Draw by fifty moves rule": 19
    "Draw by insufficient mating material": 27

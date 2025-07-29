@@ -1,12 +1,13 @@
 use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
-use chess::{Board, BoardStatus, ChessMove};
+use chess::{Board, BoardStatus, ChessMove, Piece};
 
 use crate::{
     engine::search::Search,
-    evaluator, orderer,
+    evaluator::{self, piece_value},
+    orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::uci_sender,
+    uci::{UciSearchStop, uci_sender},
 };
 
 /// The chess engine itself, it performs the search and data keeping.
@@ -25,25 +26,26 @@ pub struct Engine {
     /// Information about the current search.
     pub(super) search: Search,
 
-    /// Stop receiver. Receives if a stop command was sent.
-    pub(super) stop_rx: Receiver<()>,
-    /// Ponder receiver. Receives if a ponderhit command was sent.
-    pub(super) ponderhit_rx: Receiver<()>,
+    /// Channel for receiving the search stop commands.
+    pub(super) search_stop_rx: Receiver<UciSearchStop>,
 }
 
 impl Engine {
     /// Creates a new engine.
-    pub fn new(stop_rx: Receiver<()>, ponderhit_rx: Receiver<()>) -> Self {
+    pub fn new(search_stop_rx: Receiver<UciSearchStop>) -> Self {
         let board = Board::default();
+
+        // Preallocate 120 plys to avoid many memory allocations early on.
+        let mut position_stack = Vec::with_capacity(120);
+        position_stack.push((board.get_hash(), true));
 
         Engine {
             initial_board: board.get_hash(),
             board,
             tt: TT::new(),
-            position_stack: vec![(board.get_hash(), true)],
+            position_stack,
             search: Search::default(),
-            stop_rx,
-            ponderhit_rx,
+            search_stop_rx,
         }
     }
 
@@ -59,18 +61,25 @@ impl Engine {
         // Always set start time even if no go movetime command was sent.
         self.search.start_time = SystemTime::now();
 
-        let mut eval = 0;
+        // Search volatility threshold.
+        let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
         // Use passed depth or at most depth 35. The PVS search stop must not check for depth
         // because of this. Search extensions will not be affected by this limit however.
+        let mut eval = 0;
         for depth in 1..self.search.depth.unwrap_or(35) {
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
 
-            // Only set the PV search depth to the current depth and eval to new_eval if the search
-            // was not interrupted.
+            // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
+                // If eval changes a lot after 3rd ply, extend sort time.
+                if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
+                    self.search.search_volatility = true;
+                }
+
+                // Set the PV search depth to the current depth and eval to new_eval.
                 eval = new_eval;
                 pv_depth = depth;
             }
@@ -86,7 +95,7 @@ impl Engine {
                     depth,
                     search_time,
                     self.search.nodes,
-                    // FIXME: gather pv should not be done here on the hot path?
+                    // FIXME: gather PV should not be done here on the hot path?
                     self.pv(pv_depth),
                     eval,
                 );
@@ -100,21 +109,37 @@ impl Engine {
     }
 
     /// Returns the current principal variation of the internal state.
-    fn pv(&self, depth: u16) -> Vec<ChessMove> {
-        // At most print pv of eight plies.
+    fn pv(&mut self, depth: u16) -> Vec<ChessMove> {
+        // At most print PV of eight plies.
         let depth = depth.min(8);
         let mut pv = Vec::with_capacity(depth as usize);
         let mut temp_board = self.board;
 
         let mut idx = 0;
         // Traverse the TT until the searched depth and gather the PV.
-        while let Some(entry) = self.tt.get(temp_board.get_hash())
+        while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
             && idx < depth as u64
         {
-            pv.push(entry.mv);
-            temp_board = temp_board.make_move_new(entry.mv);
-
+            // Increment PV length at the beginning to be able to fully "unwind" the position stack.
             idx += 1;
+
+            // Add new position to position stack to check for threefold repetition.
+            let new_board = temp_board.make_move_new(mv);
+            let irreversible = Engine::move_is_irreversible(&temp_board, &new_board, mv);
+            self.position_stack
+                .push((new_board.get_hash(), irreversible));
+            // Only add the position to the PV if it is not a threefold repetition.
+            if !self.repetition() {
+                pv.push(mv);
+                temp_board = new_board;
+            } else {
+                break;
+            }
+        }
+
+        // Remove PV positions from the positions stack.
+        for _ in 0..idx {
+            self.position_stack.pop();
         }
 
         pv
@@ -123,13 +148,10 @@ impl Engine {
     /// Checks if a stop condition for search is fulfilled.
     fn stop_search(&mut self) -> bool {
         // Received ponderhit command.
-        if self.ponderhit_rx.try_recv().is_ok() {
-            self.search.ponder = false;
-        }
-
-        // Received stop command.
-        if self.stop_rx.try_recv().is_ok() {
-            self.search.stop_infinite = true;
+        match self.search_stop_rx.try_recv() {
+            Ok(UciSearchStop::Stop) => self.search.stop_infinite = true,
+            Ok(UciSearchStop::Ponderhit) => self.search.ponder = false,
+            _ => {}
         }
 
         // Stop command (infinite search, quit or ponder miss).
@@ -143,13 +165,23 @@ impl Engine {
         }
 
         // Move time limit.
-        if let Some(move_time) = self.search.move_time
-            && SystemTime::now()
+        if let Some(hard_time) = self.search.hard_move_time {
+            // Safe to unwrap since always both are set.
+            let soft_time = self.search.soft_move_time.unwrap();
+
+            let duration = SystemTime::now()
                 .duration_since(self.search.start_time)
-                .unwrap()
-                > move_time
-        {
-            return true;
+                .unwrap();
+
+            // Always stop when hard limit is reached.
+            if duration > hard_time {
+                return true;
+            }
+
+            // If the search was not volatile, abide to soft time limit.
+            if !self.search.search_volatility && duration > soft_time {
+                return true;
+            }
         }
 
         // Node limit.
@@ -217,7 +249,7 @@ impl Engine {
 
         let mut first_search = true;
         let mut max_eval = i64::MIN + 1;
-        let mut best_mv = None;
+        let mut best_move = None;
         for mv in moves {
             let new_board = board.make_move_new(*mv);
 
@@ -257,7 +289,7 @@ impl Engine {
 
                 if new_eval > max_eval {
                     max_eval = new_eval;
-                    best_mv = Some(*mv);
+                    best_move = Some(*mv);
                 }
 
                 alpha = max(new_eval, alpha);
@@ -267,10 +299,12 @@ impl Engine {
                     break;
                 }
             } else {
-                // If pvs returns None, search was cancelled, return up the chain.
+                // If PVS returns None, search was cancelled, return up the chain.
                 return None;
             }
         }
+
+        let best_move = best_move.expect("PVS didn't find any move to make.");
 
         // Store entry.
         let flag = match (max_eval <= prev_alpha, max_eval >= beta) {
@@ -278,13 +312,7 @@ impl Engine {
             (_, true) => TtEntryFlag::Beta,
             _ => TtEntryFlag::Exact,
         };
-        let tt_entry = TtEntry::new(
-            flag,
-            depth,
-            best_mv.expect("PVS didn't find any move to make."),
-            board.side_to_move(),
-            max_eval,
-        );
+        let tt_entry = TtEntry::new(flag, depth, best_move, board.side_to_move(), max_eval);
         self.tt.set(board.get_hash(), tt_entry);
 
         Some(max_eval)

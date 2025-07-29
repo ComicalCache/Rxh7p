@@ -4,12 +4,13 @@ use chess::{Board, ChessMove, Color};
 
 use crate::{
     engine::{Engine, search::Search},
+    evaluator,
     uci::{GoCommandConfig, uci_sender},
 };
 
 impl Engine {
     /// Initializes the engine with defaults.
-    pub fn init(&mut self, board: Board) {
+    pub fn uci_init(&mut self, board: Board) {
         self.initial_board = board.get_hash();
         self.board = board;
         self.tt.clear();
@@ -22,7 +23,7 @@ impl Engine {
     pub fn uci_position(&mut self, mut board: Board, moves: Option<Vec<ChessMove>>) {
         // Initial position does not match engine.
         if board.get_hash() != self.initial_board {
-            self.init(board);
+            self.uci_init(board);
         }
 
         // Nothing more to do.
@@ -62,51 +63,13 @@ impl Engine {
     fn go_prelude(&mut self, config: GoCommandConfig) {
         self.search = Search::default();
 
-        // Reset stop_rx and ponderhit rx as they might cause the next search to short circuit.
-        while self.stop_rx.try_recv().is_ok() {}
-        while self.ponderhit_rx.try_recv().is_ok() {}
+        // Reset search_stop_rx as it might cause the next search to short circuit.
+        while self.search_stop_rx.try_recv().is_ok() {}
+
+        self.set_move_time(&config);
 
         // Set moves to search.
         self.search.moves = config.searchmoves;
-
-        // Set time appropriately to player clocks.
-        // FIXME: improve time management.
-        match self.board.side_to_move() {
-            Color::White => {
-                if let Some(time) = config.wtime {
-                    let inc = config.winc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 30 plus half of the increment.
-                    self.search.move_time = Some((time + (inc / 2)) / 30);
-                }
-            }
-            Color::Black => {
-                if let Some(time) = config.btime {
-                    let inc = config.binc.unwrap_or(Duration::ZERO);
-                    // Just divide remaining time by 30 plus half of the increment.
-                    self.search.move_time = Some((time + (inc / 2)) / 30);
-                }
-            }
-        }
-        // Go movetime was set.
-        if let Some(time) = config.move_time {
-            if let Some(move_time) = self.search.move_time {
-                // If move time is less than previously calculated time, use that.
-                if time < move_time {
-                    self.search.move_time = Some(time);
-                }
-            } else {
-                // No time set yet.
-                self.search.move_time = Some(time);
-            }
-        }
-
-        // Subtract 10ms from the time limit to avoid losing by time.
-        if let Some(time) = self.search.move_time {
-            let ms = Duration::from_millis(10);
-            if time > ms {
-                self.search.move_time = Some(time - ms);
-            }
-        }
 
         // Set remaining parameters.
         self.search.node_limit = config.nodes;
@@ -130,5 +93,66 @@ impl Engine {
             best_move,
             self.tt.get(new_board.get_hash()).map(|entry| entry.mv),
         );
+    }
+
+    fn set_move_time(&mut self, config: &GoCommandConfig) {
+        if let Some((time, inc)) = match self.board.side_to_move() {
+            Color::White => config
+                .wtime
+                .map(|time| (time, config.winc.unwrap_or(Duration::ZERO))),
+            Color::Black => config
+                .btime
+                .map(|time| (time, config.binc.unwrap_or(Duration::ZERO))),
+        } {
+            // Just divide remaining time by 20 plus 3/4th of the increment.
+            self.search.hard_move_time = Some((time / 20) + (3 * inc / 4));
+        }
+
+        // Go movetime was set.
+        if let Some(time) = config.move_time {
+            if let Some(move_time) = self.search.hard_move_time {
+                // If move time is less than previously calculated time, use that.
+                if time < move_time {
+                    self.search.hard_move_time = Some(time);
+                }
+            } else {
+                // No time set yet.
+                self.search.hard_move_time = Some(time);
+            }
+        }
+
+        // Set soft move time.
+        self.search.soft_move_time = self.search.hard_move_time;
+
+        // Decreases search time towards the beginning and end of the game and increases towards to
+        // middle of the game. Game phase is calculated early game = 24 -> end game = 0.
+        const MOVE_TIME_FACTORS: [f64; 25] = [
+            0.8, 0.8, 0.8, 0.8, 0.9, 0.9, 0.9, 0.9, 1., 1., 1., 1., 1., 1., 1.2, 1.2, 1.2, 1.2,
+            1.2, 1.2, 1.2, 1.2, 1., 0.8, 0.8,
+        ];
+
+        if let Some(time) = self.search.hard_move_time {
+            // Scale time by game phase.
+            let time = (time.as_millis_f64()
+                * MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize])
+                as u64;
+
+            let safety_margin = 10;
+            let soft_margin = 65;
+
+            let hard_move_time = time - safety_margin;
+            let soft_move_time = time - safety_margin - soft_margin;
+
+            // Subtract a safety margin from the hard time limit to avoid losing by time.
+            if time > safety_margin {
+                self.search.hard_move_time = Some(Duration::from_millis(hard_move_time));
+                self.search.soft_move_time = Some(Duration::from_millis(hard_move_time));
+
+                // Set soft move time to be soft margin less than hard move time.
+                if hard_move_time > soft_margin {
+                    self.search.soft_move_time = Some(Duration::from_millis(soft_move_time));
+                }
+            }
+        }
     }
 }

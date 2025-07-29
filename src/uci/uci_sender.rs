@@ -10,7 +10,7 @@ pub fn ready_ok() {
 /// id.
 pub fn id() {
     println!(
-        "id name Rxh7+ V{}.{}.{}",
+        "id name Rxh7+ v{}.{}.{}",
         env!("CARGO_PKG_VERSION_MAJOR"),
         env!("CARGO_PKG_VERSION_MINOR"),
         env!("CARGO_PKG_VERSION_PATCH")

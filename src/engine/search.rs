@@ -20,12 +20,17 @@ pub(super) struct Search {
     /// When the search started.
     pub(super) start_time: SystemTime,
 
+    /// Determines if the position is volatile.
+    pub(super) search_volatility: bool,
+
     /// Search no ply deeper than this.
     pub(super) depth: Option<u16>,
     /// Search no more nodes than this.
     pub(super) node_limit: Option<u64>,
-    /// Think time limit.
-    pub(super) move_time: Option<Duration>,
+    /// Hard think time limit.
+    pub(super) hard_move_time: Option<Duration>,
+    /// Soft think time limit.
+    pub(super) soft_move_time: Option<Duration>,
 }
 
 impl Default for Search {
@@ -37,9 +42,11 @@ impl Default for Search {
             ply: 0,
             nodes: 0,
             start_time: SystemTime::UNIX_EPOCH,
+            search_volatility: false,
             depth: None,
             node_limit: None,
-            move_time: None,
+            hard_move_time: None,
+            soft_move_time: None,
         }
     }
 }

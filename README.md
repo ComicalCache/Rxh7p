@@ -105,6 +105,14 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 </details>
 
+### Time Management
+
+<details>
+
+- https://www.chessprogramming.org/Time_Management
+
+</details>
+
 ### Evaluation
 
 <details>
