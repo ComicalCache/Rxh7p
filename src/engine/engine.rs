@@ -52,7 +52,7 @@ impl Engine {
     /// Performs an iterative deepenign search on the internal state.
     pub(super) fn iterative_deepening(&mut self) {
         // Use predetermined moves for search if specified.
-        let searchmoves = if self.search.moves.is_empty() {
+        let moves = if self.search.moves.is_empty() {
             None
         } else {
             Some(self.search.moves.clone())
@@ -69,14 +69,14 @@ impl Engine {
         let mut eval = 0;
         for depth in 1..self.search.depth.unwrap_or(35) {
             // i64::MIN + 1 to avoid overflow when negating the value.
-            let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
+            let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
 
             // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
                 // If eval changes a lot after 3rd ply, extend sort time.
                 if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
-                    self.search.search_volatility = true;
+                    self.search.volatility = true;
                 }
 
                 // Set the PV search depth to the current depth and eval to new_eval.
@@ -118,7 +118,7 @@ impl Engine {
         let mut idx = 0;
         // Traverse the TT until the searched depth and gather the PV.
         while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
-            && idx < depth as u64
+            && idx < u64::from(depth)
         {
             // Increment PV length at the beginning to be able to fully "unwind" the position stack.
             idx += 1;
@@ -129,12 +129,12 @@ impl Engine {
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
             // Only add the position to the PV if it is not a threefold repetition.
-            if !self.repetition() {
-                pv.push(mv);
-                temp_board = new_board;
-            } else {
+            if self.repetition() {
                 break;
             }
+
+            pv.push(mv);
+            temp_board = new_board;
         }
 
         // Remove PV positions from the positions stack.
@@ -179,7 +179,7 @@ impl Engine {
             }
 
             // If the search was not volatile, abide to soft time limit.
-            if !self.search.search_volatility && duration > soft_time {
+            if !self.search.volatility && duration > soft_time {
                 return true;
             }
         }
@@ -198,7 +198,7 @@ impl Engine {
     fn pvs(
         &mut self,
         board: Board,
-        searchmoves: &Option<Vec<ChessMove>>,
+        searchmoves: Option<&Vec<ChessMove>>,
         mut alpha: i64,
         beta: i64,
         depth: u16,
@@ -260,9 +260,13 @@ impl Engine {
             self.search.ply += 1;
 
             let mut new_eval;
-            if !first_search {
+            if first_search {
+                // Evaluate new position fully if first search.
+                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
+                first_search = false;
+            } else {
                 // Perform null-window search on following searches.
-                new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
+                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1);
 
                 // If the null-window search failed high, repeat with a full search.
                 if let Some(eval) = new_eval
@@ -271,12 +275,8 @@ impl Engine {
                     && -eval > alpha
                     && -eval < beta
                 {
-                    new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 }
-            } else {
-                // Evaluate new position fully if first search.
-                new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
-                first_search = false;
             }
 
             // Pop new position from the stack and decrement search ply.

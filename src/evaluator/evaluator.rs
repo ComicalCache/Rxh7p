@@ -1,4 +1,4 @@
-use chess::{Board, Color, Piece, Square};
+use chess::{Board, BoardStatus, Color, Piece, Square};
 
 use crate::evaluator::{
     piece_tables::piece_table_value,
@@ -6,31 +6,29 @@ use crate::evaluator::{
 };
 
 /// Returns the value that a type of piece adds to the game phase calculation.
-fn game_phase_value(piece: Piece) -> i64 {
+fn game_phase_value(piece: Piece) -> u32 {
     match piece {
-        Piece::Pawn => 0,
-        Piece::Knight => 1,
-        Piece::Bishop => 1,
+        Piece::Pawn | Piece::King => 0,
+        Piece::Knight | Piece::Bishop => 1,
         Piece::Rook => 2,
         Piece::Queen => 4,
-        Piece::King => 0,
     }
 }
 
 /// Calculates the tapered evaluation.
-fn tapered_eval(tween: i64, mid_game_eval: i64, end_game_eval: i64) -> i64 {
-    let mid_game_phase = tween.min(24);
+fn tapered_eval(tween: u32, mid_game_eval: i64, end_game_eval: i64) -> i64 {
+    let mid_game_phase = i64::from(tween.min(24));
     let end_game_phase = 24 - mid_game_phase;
     (mid_game_eval * mid_game_phase + end_game_eval * end_game_phase) / 24
 }
 
-pub fn game_phase(board: &Board) -> i64 {
+pub fn game_phase(board: &Board) -> u32 {
     // Calculate game phase.
     let mut phase = 0;
 
     let phase_pieces = [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen];
     for phase_piece in phase_pieces {
-        phase += board.pieces(phase_piece).popcnt() as i64 * game_phase_value(phase_piece);
+        phase += board.pieces(phase_piece).popcnt() * game_phase_value(phase_piece);
     }
 
     phase
@@ -60,9 +58,9 @@ pub fn evaluate(board: &Board) -> i64 {
     // Stalemate is neutral, being in checkmate is VERY bad since it means the player checking
     // is in checkmate.
     match board.status() {
-        chess::BoardStatus::Stalemate => return 0,
-        chess::BoardStatus::Checkmate => return -10_000_000,
-        _ => {}
+        BoardStatus::Stalemate => return 0,
+        BoardStatus::Checkmate => return -10_000_000,
+        BoardStatus::Ongoing => {}
     }
 
     let pieces = [

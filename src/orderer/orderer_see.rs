@@ -6,11 +6,11 @@ use crate::{
 };
 
 /// Orders all captures according to their SEE in ascending order.
-pub(super) fn see_order_captures(board: &Board, captures: Vec<ChessMove>) -> Vec<OrdererEntry> {
+pub(super) fn see_order_captures(board: &Board, captures: &mut MoveGen) -> Vec<OrdererEntry> {
     let mut ordered = Vec::with_capacity(captures.len());
 
-    for capture in &captures {
-        ordered.push(OrdererEntry::new(see_capture(board, *capture), *capture));
+    for capture in captures {
+        ordered.push(OrdererEntry::new(see_capture(board, capture), capture));
     }
 
     // Sort captures.
