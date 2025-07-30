@@ -13,7 +13,6 @@ impl Engine {
             soft_move_time: self.search.soft_move_time,
             time_limit_kind: None,
             ply: self.position_stack.len() - 1,
-            depth: 0,
             game_phase: evaluator::game_phase(&self.board),
         };
     }

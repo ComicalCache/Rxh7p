@@ -38,8 +38,6 @@ pub struct SearchLog {
 
     /// The ply of the position.
     pub(super) ply: usize,
-    /// The depth of the search.
-    pub(super) depth: usize,
     /// The game phase of the position.
     pub(super) game_phase: u32,
 }
@@ -48,9 +46,8 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{},{},{},{:?},{:?},{:?}",
+            "{},{},{:?},{:?},{:?}",
             self.ply,
-            self.depth,
             self.game_phase,
             self.soft_move_time,
             self.hard_move_time,

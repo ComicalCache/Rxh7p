@@ -1,3 +1,6 @@
+#[cfg(feature = "logging")]
+use std::{fs::File, io::Write};
+
 use std::time::Duration;
 
 use chess::ChessMove;
@@ -30,8 +33,39 @@ pub fn best_move(mv: ChessMove, ponder_move: Option<ChessMove>) {
     println!("{msg}");
 }
 
+#[cfg(not(feature = "logging"))]
 /// General info message.
 pub fn search_info(depth: usize, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
+    println!("{}", __search_info(depth, time, nodes, pv, score_cp));
+}
+
+#[cfg(feature = "logging")]
+/// General info log entry.
+pub fn log_search_info(
+    log_file: &mut File,
+    depth: usize,
+    time: Duration,
+    nodes: u64,
+    pv: Vec<ChessMove>,
+    score_cp: i64,
+) {
+    if let Err(err) = writeln!(
+        log_file,
+        "{}",
+        __search_info(depth, time, nodes, pv, score_cp)
+    ) {
+        panic!("Failed to write to log file: {err}");
+    }
+}
+
+/// Generates the info message.
+fn __search_info(
+    depth: usize,
+    time: Duration,
+    nodes: u64,
+    pv: Vec<ChessMove>,
+    score_cp: i64,
+) -> String {
     // FIXME: seldepth, refutation, currline and score mate should be sent.
     let mut msg = format!(
         "info depth {depth} time {} nodes {nodes} nps {} score cp {score_cp}",
@@ -47,5 +81,5 @@ pub fn search_info(depth: usize, time: Duration, nodes: u64, pv: Vec<ChessMove>,
         }
     }
 
-    println!("{msg}");
+    msg
 }

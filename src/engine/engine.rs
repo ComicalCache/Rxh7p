@@ -133,21 +133,36 @@ impl Engine {
                     .duration_since(self.search.start_time)
                     .unwrap();
 
-                uci_sender::search_info(
-                    depth,
-                    search_time,
-                    self.search.nodes,
+                // Only log to file if feature logging is enabled.
+                #[cfg(feature = "logging")]
+                {
+                    let pv = self.pv(pv_depth);
+                    uci_sender::log_search_info(
+                        &mut self.log_file,
+                        depth,
+                        search_time,
+                        self.search.nodes,
+                        pv,
+                        eval,
+                    );
+                }
+
+                // Only log to console if feature logging is disabled.
+                #[cfg(not(feature = "logging"))]
+                {
                     // FIXME: gather PV should not be done here on the hot path?
-                    self.pv(pv_depth),
-                    eval,
-                );
+                    let pv = self.pv(pv_depth);
+                    uci_sender::search_info(depth, search_time, self.search.nodes, pv, eval);
+                }
             }
 
             // Search was cancelled.
             if new_eval.is_none() {
                 #[cfg(feature = "logging")]
-                if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
-                    panic!("Failed to write to log file: {err}");
+                {
+                    if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
+                        panic!("Failed to write to log file: {err}");
+                    }
                 }
 
                 break;
