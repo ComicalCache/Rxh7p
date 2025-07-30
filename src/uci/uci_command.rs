@@ -21,7 +21,7 @@ pub struct GoCommandConfig {
     pub moves_to_go: u64,
     */
     /// Search x plies.
-    pub depth: Option<u16>,
+    pub depth: Option<usize>,
     /// Search x nodes.
     pub nodes: Option<u64>,
     /* TODO: implement search for mate.
@@ -95,6 +95,15 @@ impl UciCommand {
 
     /// Parses the parameters of a UCI go command.
     fn parse_go<'a>(mut args: impl Iterator<Item = &'a str>) -> UciCommand {
+        /// Helper function to parse an argument to a type.
+        fn num<T: FromStr>(arg: Option<&str>, cmd_name: &str, kind: &str) -> T {
+            arg.unwrap_or_else(|| panic!("Expected {kind} from go {cmd_name} command"))
+                .parse::<T>()
+                .unwrap_or_else(|_| {
+                    panic!("Expected a valid number of {kind} from the go {cmd_name} command")
+                })
+        }
+
         // By default search infinitely.
         let mut config = GoCommandConfig {
             searchmoves: Vec::new(),
@@ -106,14 +115,6 @@ impl UciCommand {
             depth: None,
             nodes: None,
             move_time: None,
-        };
-
-        let num = |arg: Option<&str>, cmd_name: &str, kind: &str| {
-            arg.unwrap_or_else(|| panic!("Expected seconds from go {cmd_name} command"))
-                .parse()
-                .unwrap_or_else(|_| {
-                    panic!("Expected a valid number of {kind} from the go {cmd_name} command")
-                })
         };
 
         while let Some(arg) = args.next() {
@@ -128,27 +129,29 @@ impl UciCommand {
                 }
                 "ponder" => config.ponder = true,
                 "wtime" => {
-                    config.wtime = Some(Duration::from_millis(num(args.next(), "wtime", "seconds")))
+                    config.wtime =
+                        Some(Duration::from_millis(num(args.next(), "wtime", "seconds")));
                 }
                 "btime" => {
-                    config.btime = Some(Duration::from_millis(num(args.next(), "btime", "seconds")))
+                    config.btime =
+                        Some(Duration::from_millis(num(args.next(), "btime", "seconds")));
                 }
                 "winc" => {
-                    config.winc = Some(Duration::from_millis(num(args.next(), "winc", "seconds")))
+                    config.winc = Some(Duration::from_millis(num(args.next(), "winc", "seconds")));
                 }
                 "binc" => {
-                    config.binc = Some(Duration::from_millis(num(args.next(), "binc", "seconds")))
+                    config.binc = Some(Duration::from_millis(num(args.next(), "binc", "seconds")));
                 }
                 // TODO: implement moves to go.
                 "movestogo" => {}
-                "depth" => config.depth = Some(num(args.next(), "depth", "plies") as u16),
+                "depth" => config.depth = Some(num(args.next(), "depth", "plies")),
                 "nodes" => config.nodes = Some(num(args.next(), "nodes", "nodes")),
                 "movetime" => {
                     config.move_time = Some(Duration::from_millis(num(
                         args.next(),
                         "movetime",
                         "milliseconds",
-                    )))
+                    )));
                 }
                 // Just ignore the infinite token since the default is infinite.
                 "infinite" => {}
@@ -161,9 +164,9 @@ impl UciCommand {
 }
 
 impl From<&str> for UciCommand {
-    /// Creates a UciCommand (including parsed parameters) from a string.
+    /// Creates a `UciCommand` (including parsed parameters) from a string.
     fn from(value: &str) -> Self {
-        use UciCommand::*;
+        use UciCommand::{Invalid, IsReady, Ponderhit, Quit, Stop, Uci, UciNewGame};
 
         let mut split = value.split_whitespace();
         if let Some(command) = split.next() {

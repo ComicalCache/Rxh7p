@@ -12,7 +12,7 @@ use crate::{
 /// 4. Killer moves.
 /// 5. Bad captures.
 /// 6. Remaining moves (random order).
-pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
+pub fn all(board: &Board, depth: usize, tt: &TT) -> Vec<ChessMove> {
     let mut moves = MoveGen::new_legal(board);
 
     // Plus one for principal variation move.
@@ -20,7 +20,7 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
 
     // Get all captures and order them.
     moves.set_iterator_mask(orderer_masks::captures_mask(board));
-    let captures = orderer_see::see_order_captures(board, Vec::from_iter(&mut moves));
+    let captures = orderer_see::see_order_captures(board, &mut moves);
 
     moves.set_iterator_mask(!EMPTY);
     // Create with potentially too much capacity to avoid unnecessary allocations.
@@ -33,12 +33,12 @@ pub fn all(board: &Board, depth: u16, tt: &TT) -> Vec<ChessMove> {
         if let Some(entry) = tt.get(board.make_move_new(mv).get_hash()) {
             match entry.flag {
                 // PV move at higher or equal depth.
-                TtEntryFlag::Exact if entry.depth >= depth => {
-                    pv_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv))
+                TtEntryFlag::Exact if entry.depth as usize >= depth => {
+                    pv_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv));
                 }
                 // Killer move at higher or equal depth.
-                TtEntryFlag::Beta if entry.depth >= depth => {
-                    killer_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv))
+                TtEntryFlag::Beta if entry.depth as usize >= depth => {
+                    killer_moves.push(OrdererEntry::new(entry.value(board.side_to_move()), mv));
                 }
                 _ => remaining_moves.push(mv),
             }
@@ -88,7 +88,7 @@ pub fn quiescence(board: &Board) -> impl Iterator<Item = ChessMove> {
     moves.set_iterator_mask(orderer_masks::captures_mask(board));
 
     // Reverse since sort is ascending.
-    orderer_see::see_order_captures(board, Vec::from_iter(&mut moves))
+    orderer_see::see_order_captures(board, &mut moves)
         .into_iter()
         .map(|entry| entry.mv)
         .rev()

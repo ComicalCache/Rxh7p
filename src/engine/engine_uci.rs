@@ -37,7 +37,7 @@ impl Engine {
         }
 
         // Apply all moves on the start board and add moves to the position stack.
-        // Safe to unwrap as it was tested before.
+        // Safe to unwrap as it was tested for none before.
         for mv in moves.unwrap() {
             let new_board = board.make_move_new(mv);
 
@@ -55,6 +55,10 @@ impl Engine {
     /// Performes a received UCI go command search.
     pub fn go(&mut self, config: GoCommandConfig) {
         self.go_prelude(config);
+
+        #[cfg(feature = "logging")]
+        self.go_log_prelude();
+
         self.iterative_deepening();
         self.go_epilogue();
     }
@@ -96,6 +100,36 @@ impl Engine {
     }
 
     fn set_move_time(&mut self, config: &GoCommandConfig) {
+        // Decreases search time towards the beginning and end of the game and increases towards to
+        // middle of the game. Game phase is calculated early game = 24 -> end game = 0.
+        const MOVE_TIME_FACTORS: [(u64, u64); 25] = [
+            (4, 5),  // 0.8
+            (4, 5),  // 0.8
+            (4, 5),  // 0.8
+            (4, 5),  // 0.8
+            (9, 10), // 0.9
+            (9, 10), // 0.9
+            (9, 10), // 0.9
+            (9, 10), // 0.9
+            (1, 1),  // 1
+            (1, 1),  // 1
+            (1, 1),  // 1
+            (1, 1),  // 1
+            (1, 1),  // 1
+            (1, 1),  // 1
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (6, 5),  // 1.2
+            (1, 1),  // 1
+            (4, 5),  // 0.8
+            (4, 5),  // 0.8
+        ];
+
         if let Some((time, inc)) = match self.board.side_to_move() {
             Color::White => config
                 .wtime
@@ -124,18 +158,12 @@ impl Engine {
         // Set soft move time.
         self.search.soft_move_time = self.search.hard_move_time;
 
-        // Decreases search time towards the beginning and end of the game and increases towards to
-        // middle of the game. Game phase is calculated early game = 24 -> end game = 0.
-        const MOVE_TIME_FACTORS: [f64; 25] = [
-            0.8, 0.8, 0.8, 0.8, 0.9, 0.9, 0.9, 0.9, 1., 1., 1., 1., 1., 1., 1.2, 1.2, 1.2, 1.2,
-            1.2, 1.2, 1.2, 1.2, 1., 0.8, 0.8,
-        ];
-
         if let Some(time) = self.search.hard_move_time {
+            let (num, denom) = MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize];
+
             // Scale time by game phase.
-            let time = (time.as_millis_f64()
-                * MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize])
-                as u64;
+            #[allow(clippy::cast_possible_truncation)]
+            let time = (num * time.as_millis() as u64) / denom;
 
             let safety_margin = 10;
             let soft_margin = 65;

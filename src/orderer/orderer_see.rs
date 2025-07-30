@@ -6,11 +6,11 @@ use crate::{
 };
 
 /// Orders all captures according to their SEE in ascending order.
-pub(super) fn see_order_captures(board: &Board, captures: Vec<ChessMove>) -> Vec<OrdererEntry> {
+pub(super) fn see_order_captures(board: &Board, captures: &mut MoveGen) -> Vec<OrdererEntry> {
     let mut ordered = Vec::with_capacity(captures.len());
 
-    for capture in &captures {
-        ordered.push(OrdererEntry::new(see_capture(board, *capture), *capture));
+    for capture in captures {
+        ordered.push(OrdererEntry::new(see_capture(board, capture), capture));
     }
 
     // Sort captures.
@@ -25,6 +25,7 @@ fn see_capture(board: &Board, capture: ChessMove) -> i64 {
         board,
         // Piece value of opponent.
         !board.side_to_move(),
+        // FIXME: this panics if the capture is a en-passant.
         board.piece_on(capture.get_dest()).unwrap(),
         capture.get_dest(),
     );
@@ -42,6 +43,7 @@ fn see(board: &Board, square: Square) -> i64 {
             board,
             // Piece value of opponent.
             !board.side_to_move(),
+            // FIXME: this panics if the capture is a en-passant.
             board.piece_on(smallest_attack.get_dest()).unwrap(),
             smallest_attack.get_dest(),
         );
@@ -73,6 +75,7 @@ fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
             board,
             // Piece value of self.
             board.side_to_move(),
+            // FIXME: this panics if the capture is a en-passant.
             board.piece_on(capture.get_source()).unwrap(),
             capture.get_source(),
         );

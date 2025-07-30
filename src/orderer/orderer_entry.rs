@@ -10,7 +10,7 @@ pub(super) struct OrdererEntry {
 }
 
 impl OrdererEntry {
-    /// Creates a new OrdererEntry.
+    /// Creates a new `OrdererEntry`.
     pub(super) fn new(value: i64, mv: ChessMove) -> Self {
         OrdererEntry { value, mv }
     }

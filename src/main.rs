@@ -1,5 +1,3 @@
-#![feature(duration_millis_float)]
-
 use std::{sync::mpsc, thread};
 
 use chess::Board;
@@ -45,11 +43,10 @@ fn main() {
         }
     }
 
+    #[cfg(feature = "logging")]
+    engine.flush_log_file();
+
     if let Err(err) = uci_receiver_thread.join() {
         println!("Failed to join uci receiver thread: {err:#?}");
     }
-
-    // This drops the uci sender tx and thus stops the loop in UciSender::start, causing the thread
-    // to stop.
-    drop(engine);
 }

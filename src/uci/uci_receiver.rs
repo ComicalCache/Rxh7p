@@ -41,12 +41,12 @@ impl UciReceiver {
             let send = |cmd| {
                 self.cmd_tx
                     .send(cmd)
-                    .expect("Failed to send command to main thread")
+                    .expect("Failed to send command to main thread");
             };
 
             match command {
                 // Don't propagate invalid commands to the engine.
-                UciCommand::Invalid => continue,
+                UciCommand::Invalid => {}
                 UciCommand::Uci => uci_sender::id(),
                 // Send here since main is busy.
                 UciCommand::Stop => self

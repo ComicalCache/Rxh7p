@@ -1,6 +1,16 @@
+#[cfg(feature = "logging")]
+use std::{
+    env,
+    fs::{File, OpenOptions},
+    io::{BufWriter, Write},
+};
+
 use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
 use chess::{Board, BoardStatus, ChessMove, Piece};
+
+#[cfg(feature = "logging")]
+use crate::engine::search_log::{MoveTimeLimitKind, SearchLog};
 
 use crate::{
     engine::search::Search,
@@ -28,11 +38,39 @@ pub struct Engine {
 
     /// Channel for receiving the search stop commands.
     pub(super) search_stop_rx: Receiver<UciSearchStop>,
+
+    #[cfg(feature = "logging")]
+    /// The log file to write the log to.
+    log_file: BufWriter<File>,
+
+    #[cfg(feature = "logging")]
+    /// Contains a log about the current search.
+    pub search_log: SearchLog,
 }
 
 impl Engine {
     /// Creates a new engine.
     pub fn new(search_stop_rx: Receiver<UciSearchStop>) -> Self {
+        #[cfg(feature = "logging")]
+        let log_file = {
+            let log_path = env::args()
+                .nth(1)
+                .expect("Expected log file path in logging build.");
+            let mut log_file = match OpenOptions::new().create(true).append(true).open(log_path) {
+                Ok(file) => file,
+                Err(err) => panic!("Failed to open log file: {err}"),
+            };
+            if let Err(err) = writeln!(
+                &mut log_file,
+                "=== START LOG ===\n{}",
+                SearchLog::search_stats_header()
+            ) {
+                panic!("Failed to write to log file: {err}");
+            }
+
+            log_file
+        };
+
         let board = Board::default();
 
         // Preallocate 120 plys to avoid many memory allocations early on.
@@ -46,13 +84,26 @@ impl Engine {
             position_stack,
             search: Search::default(),
             search_stop_rx,
+
+            #[cfg(feature = "logging")]
+            log_file: BufWriter::new(log_file),
+
+            #[cfg(feature = "logging")]
+            search_log: SearchLog::default(),
+        }
+    }
+
+    #[cfg(feature = "logging")]
+    pub fn flush_log_file(&mut self) {
+        if let Err(err) = self.log_file.flush() {
+            panic!("Failed to flush log file: {err}");
         }
     }
 
     /// Performs an iterative deepenign search on the internal state.
     pub(super) fn iterative_deepening(&mut self) {
         // Use predetermined moves for search if specified.
-        let searchmoves = if self.search.moves.is_empty() {
+        let moves = if self.search.moves.is_empty() {
             None
         } else {
             Some(self.search.moves.clone())
@@ -64,19 +115,29 @@ impl Engine {
         // Search volatility threshold.
         let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
-        // Use passed depth or at most depth 35. The PVS search stop must not check for depth
-        // because of this. Search extensions will not be affected by this limit however.
         let mut eval = 0;
-        for depth in 1..self.search.depth.unwrap_or(35) {
+        for depth in 1.. {
+            // Use passed depth or at most depth 35. The PVS search stop must not check for depth
+            // because of this. Search extensions will not be affected by this limit however.
+            if !self.search.ponder && depth >= self.search.depth.unwrap_or(35) {
+                break;
+            }
+
             // i64::MIN + 1 to avoid overflow when negating the value.
-            let new_eval = self.pvs(self.board, &searchmoves, i64::MIN + 1, i64::MAX, depth);
+            let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
 
             // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
+                // Log eval at ply 3.
+                #[cfg(feature = "logging")]
+                if depth == 3 {
+                    self.search_log.pre_volatility_eval = eval;
+                }
+
                 // If eval changes a lot after 3rd ply, extend sort time.
                 if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
-                    self.search.search_volatility = true;
+                    self.search.volatility = true;
                 }
 
                 // Set the PV search depth to the current depth and eval to new_eval.
@@ -91,34 +152,59 @@ impl Engine {
                     .duration_since(self.search.start_time)
                     .unwrap();
 
-                uci_sender::search_info(
-                    depth,
-                    search_time,
-                    self.search.nodes,
-                    // FIXME: gather PV should not be done here on the hot path?
-                    self.pv(pv_depth),
-                    eval,
-                );
+                // Only log to file if feature logging is enabled.
+                #[cfg(feature = "logging")]
+                {
+                    let pv = self.pv(pv_depth);
+                    uci_sender::log_search_info(
+                        &mut self.log_file,
+                        depth,
+                        search_time,
+                        self.search.nodes,
+                        pv,
+                        eval,
+                    );
+                }
+
+                // FIXME: gather PV should not be done here on the hot path?
+                let pv = self.pv(pv_depth);
+                uci_sender::search_info(depth, search_time, self.search.nodes, pv, eval);
             }
 
             // Search was cancelled.
             if new_eval.is_none() {
+                #[cfg(feature = "logging")]
+                {
+                    self.search_log.depth = pv_depth;
+                    self.search_log.eval = eval;
+
+                    if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
+                        panic!("Failed to write to log file: {err}");
+                    }
+
+                    // Only flush every 20 go commands to reduce overhead and have more comparable
+                    // performance.
+                    if self.search_log.ply % 20 == 0 {
+                        self.flush_log_file();
+                    }
+                }
+
                 break;
             }
         }
     }
 
     /// Returns the current principal variation of the internal state.
-    fn pv(&mut self, depth: u16) -> Vec<ChessMove> {
+    fn pv(&mut self, depth: usize) -> Vec<ChessMove> {
         // At most print PV of eight plies.
         let depth = depth.min(8);
-        let mut pv = Vec::with_capacity(depth as usize);
+        let mut pv = Vec::with_capacity(depth);
         let mut temp_board = self.board;
 
         let mut idx = 0;
         // Traverse the TT until the searched depth and gather the PV.
         while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
-            && idx < depth as u64
+            && idx < depth
         {
             // Increment PV length at the beginning to be able to fully "unwind" the position stack.
             idx += 1;
@@ -129,12 +215,12 @@ impl Engine {
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
             // Only add the position to the PV if it is not a threefold repetition.
-            if !self.repetition() {
-                pv.push(mv);
-                temp_board = new_board;
-            } else {
+            if self.repetition() {
                 break;
             }
+
+            pv.push(mv);
+            temp_board = new_board;
         }
 
         // Remove PV positions from the positions stack.
@@ -175,11 +261,23 @@ impl Engine {
 
             // Always stop when hard limit is reached.
             if duration > hard_time {
+                #[cfg(feature = "logging")]
+                {
+                    // Save to unwrap since log entry was added before.
+                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Hard);
+                }
+
                 return true;
             }
 
             // If the search was not volatile, abide to soft time limit.
-            if !self.search.search_volatility && duration > soft_time {
+            if !self.search.volatility && duration > soft_time {
+                #[cfg(feature = "logging")]
+                {
+                    // Save to unwrap since log entry was added before.
+                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Soft);
+                }
+
                 return true;
             }
         }
@@ -198,10 +296,10 @@ impl Engine {
     fn pvs(
         &mut self,
         board: Board,
-        searchmoves: &Option<Vec<ChessMove>>,
+        searchmoves: Option<&Vec<ChessMove>>,
         mut alpha: i64,
         beta: i64,
-        depth: u16,
+        depth: usize,
     ) -> Option<i64> {
         if self.stop_search() {
             return None;
@@ -229,7 +327,7 @@ impl Engine {
 
         // If viable entry exists return evaluation.
         if let Some(entry) = self.tt.get(board.get_hash())
-            && entry.depth >= depth
+            && entry.depth as usize >= depth
         {
             let eval = entry.value(board.side_to_move());
             match entry.flag {
@@ -260,9 +358,13 @@ impl Engine {
             self.search.ply += 1;
 
             let mut new_eval;
-            if !first_search {
+            if first_search {
+                // Evaluate new position fully if first search.
+                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
+                first_search = false;
+            } else {
                 // Perform null-window search on following searches.
-                new_eval = self.pvs(new_board, &None, -alpha - 1, -alpha, depth - 1);
+                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1);
 
                 // If the null-window search failed high, repeat with a full search.
                 if let Some(eval) = new_eval
@@ -271,12 +373,8 @@ impl Engine {
                     && -eval > alpha
                     && -eval < beta
                 {
-                    new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 }
-            } else {
-                // Evaluate new position fully if first search.
-                new_eval = self.pvs(new_board, &None, -beta, -alpha, depth - 1);
-                first_search = false;
             }
 
             // Pop new position from the stack and decrement search ply.
@@ -312,6 +410,9 @@ impl Engine {
             (_, true) => TtEntryFlag::Beta,
             _ => TtEntryFlag::Exact,
         };
+
+        // Safe to unwrap, depth will never exceed 2^16...
+        let depth = u16::try_from(depth).unwrap();
         let tt_entry = TtEntry::new(flag, depth, best_move, board.side_to_move(), max_eval);
         self.tt.set(board.get_hash(), tt_entry);
 
