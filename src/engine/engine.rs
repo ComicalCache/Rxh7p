@@ -169,6 +169,9 @@ impl Engine {
             if new_eval.is_none() {
                 #[cfg(feature = "logging")]
                 {
+                    self.search_log.depth = pv_depth;
+                    self.search_log.eval = eval;
+
                     if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
                         panic!("Failed to write to log file: {err}");
                     }

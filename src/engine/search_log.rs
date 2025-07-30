@@ -40,11 +40,16 @@ pub struct SearchLog {
     pub(super) ply: usize,
     /// The game phase of the position.
     pub(super) game_phase: u32,
+
+    /// Evaluation of the search.
+    pub(super) eval: i64,
+    /// Search depth.
+    pub(super) depth: usize,
 }
 
 impl SearchLog {
     pub(super) fn search_stats_header() -> &'static str {
-        "[SEARCH STATS] ply,game phase,soft move time,hard move time,time limit kind"
+        "[SEARCH STATS] ply,game phase,depth,eval,soft move time,hard move time,time limit kind"
     }
 }
 
@@ -52,9 +57,11 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[SEARCH STATS] {},{},{:?},{:?},{:?}",
+            "[SEARCH STATS] {},{},{},{},{:?},{:?},{:?}",
             self.ply,
             self.game_phase,
+            self.depth,
+            self.eval,
             self.soft_move_time,
             self.hard_move_time,
             self.time_limit_kind
