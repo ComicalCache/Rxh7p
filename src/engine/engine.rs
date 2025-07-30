@@ -1,9 +1,16 @@
+#[cfg(feature = "logging")]
+use std::{
+    env,
+    fs::{File, OpenOptions},
+    io::Write,
+};
+
 use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 
 use chess::{Board, BoardStatus, ChessMove, Piece};
 
 #[cfg(feature = "logging")]
-use crate::engine::search_log_entry::{MoveTimeLimitKind, SearchLogEntry};
+use crate::engine::search_log::{MoveTimeLimitKind, SearchLog};
 
 use crate::{
     engine::search::Search,
@@ -33,13 +40,31 @@ pub struct Engine {
     pub(super) search_stop_rx: Receiver<UciSearchStop>,
 
     #[cfg(feature = "logging")]
-    /// Contains a log about the searches.
-    pub search_log: Vec<SearchLogEntry>,
+    /// The log file to write the log to.
+    log_file: File,
+
+    #[cfg(feature = "logging")]
+    /// Contains a log about the current search.
+    pub search_log: SearchLog,
 }
 
 impl Engine {
     /// Creates a new engine.
     pub fn new(search_stop_rx: Receiver<UciSearchStop>) -> Self {
+        #[cfg(feature = "logging")]
+        let log_path = env::args()
+            .nth(1)
+            .expect("Expected log file path in logging build.");
+        #[cfg(feature = "logging")]
+        let mut log_file = match OpenOptions::new().create(true).append(true).open(log_path) {
+            Ok(file) => file,
+            Err(err) => panic!("Failed to open log file: {err}"),
+        };
+        #[cfg(feature = "logging")]
+        if let Err(err) = writeln!(&mut log_file, "=== START LOG ===") {
+            panic!("Failed to write to log file: {err}");
+        }
+
         let board = Board::default();
 
         // Preallocate 120 plys to avoid many memory allocations early on.
@@ -55,8 +80,10 @@ impl Engine {
             search_stop_rx,
 
             #[cfg(feature = "logging")]
-            // Preallocate 120 plys to avoid many memory allocations early on.
-            search_log: Vec::with_capacity(120),
+            log_file,
+
+            #[cfg(feature = "logging")]
+            search_log: SearchLog::default(),
         }
     }
 
@@ -119,9 +146,8 @@ impl Engine {
             // Search was cancelled.
             if new_eval.is_none() {
                 #[cfg(feature = "logging")]
-                {
-                    // Save to unwrap since log entry was added before.
-                    self.search_log.last_mut().unwrap().depth = pv_depth;
+                if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
+                    panic!("Failed to write to log file: {err}");
                 }
 
                 break;
@@ -199,8 +225,7 @@ impl Engine {
                 #[cfg(feature = "logging")]
                 {
                     // Save to unwrap since log entry was added before.
-                    self.search_log.last_mut().unwrap().time_limit_kind =
-                        Some(MoveTimeLimitKind::Hard);
+                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Hard);
                 }
 
                 return true;
@@ -211,8 +236,7 @@ impl Engine {
                 #[cfg(feature = "logging")]
                 {
                     // Save to unwrap since log entry was added before.
-                    self.search_log.last_mut().unwrap().time_limit_kind =
-                        Some(MoveTimeLimitKind::Soft);
+                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Soft);
                 }
 
                 return true;

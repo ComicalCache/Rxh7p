@@ -9,4 +9,4 @@ mod search;
 #[cfg(feature = "logging")]
 mod engine_log;
 #[cfg(feature = "logging")]
-mod search_log_entry;
+mod search_log;

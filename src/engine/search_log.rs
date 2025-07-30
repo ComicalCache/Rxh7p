@@ -4,8 +4,10 @@ use std::{
 };
 
 /// Enum determining with what move time limit the search ended.
+#[derive(Default)]
 pub enum MoveTimeLimitKind {
     /// Soft move time limit.
+    #[default]
     Soft,
     /// Hard move time limit.
     Hard,
@@ -25,7 +27,8 @@ impl Debug for MoveTimeLimitKind {
 }
 
 /// Entry containing information about a search that can be logged.
-pub struct SearchLogEntry {
+#[derive(Default)]
+pub struct SearchLog {
     /// How long the calculated hard move time for this search was.
     pub(super) hard_move_time: Option<Duration>,
     /// How long the calculated soft move time for this search was.
@@ -41,7 +44,7 @@ pub struct SearchLogEntry {
     pub(super) game_phase: u32,
 }
 
-impl Display for SearchLogEntry {
+impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
