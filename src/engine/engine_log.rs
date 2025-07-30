@@ -12,8 +12,9 @@ impl Engine {
             time_limit_kind: None,
             ply: self.position_stack.len() - 1,
             game_phase: evaluator::game_phase(&self.board),
-            depth: 0,
+            pre_volatility_eval: 0,
             eval: 0,
+            depth: 0,
         };
     }
 }

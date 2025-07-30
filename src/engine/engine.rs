@@ -129,6 +129,12 @@ impl Engine {
             // If the search was not interrupted.
             let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
+                // Log eval at ply 3.
+                #[cfg(feature = "logging")]
+                if depth == 3 {
+                    self.search_log.pre_volatility_eval = eval;
+                }
+
                 // If eval changes a lot after 3rd ply, extend sort time.
                 if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
                     self.search.volatility = true;
