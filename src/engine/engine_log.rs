@@ -1,10 +1,8 @@
-#[cfg(feature = "logging")]
 use crate::{
     engine::{Engine, search_log::SearchLog},
     evaluator,
 };
 
-#[cfg(feature = "logging")]
 impl Engine {
     /// Initializes the log for the comming search.
     pub(super) fn go_log_prelude(&mut self) {

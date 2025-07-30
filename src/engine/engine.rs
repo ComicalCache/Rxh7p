@@ -52,22 +52,24 @@ impl Engine {
     /// Creates a new engine.
     pub fn new(search_stop_rx: Receiver<UciSearchStop>) -> Self {
         #[cfg(feature = "logging")]
-        let log_path = env::args()
-            .nth(1)
-            .expect("Expected log file path in logging build.");
-        #[cfg(feature = "logging")]
-        let mut log_file = match OpenOptions::new().create(true).append(true).open(log_path) {
-            Ok(file) => file,
-            Err(err) => panic!("Failed to open log file: {err}"),
+        let log_file = {
+            let log_path = env::args()
+                .nth(1)
+                .expect("Expected log file path in logging build.");
+            let mut log_file = match OpenOptions::new().create(true).append(true).open(log_path) {
+                Ok(file) => file,
+                Err(err) => panic!("Failed to open log file: {err}"),
+            };
+            if let Err(err) = writeln!(
+                &mut log_file,
+                "=== START LOG ===\n{}",
+                SearchLog::search_stats_header()
+            ) {
+                panic!("Failed to write to log file: {err}");
+            }
+
+            log_file
         };
-        #[cfg(feature = "logging")]
-        if let Err(err) = writeln!(
-            &mut log_file,
-            "=== START LOG ===\n{}",
-            SearchLog::search_stats_header()
-        ) {
-            panic!("Failed to write to log file: {err}");
-        }
 
         let board = Board::default();
 
