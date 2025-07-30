@@ -194,4 +194,3 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Aspiration_Windows
 
 </details>
-````
