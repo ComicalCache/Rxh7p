@@ -42,11 +42,17 @@ pub struct SearchLog {
     pub(super) game_phase: u32,
 }
 
+impl SearchLog {
+    pub(super) fn search_stats_header() -> &'static str {
+        "[SEARCH STATS] ply,game phase,soft move time,hard move time,time limit kind"
+    }
+}
+
 impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{},{},{:?},{:?},{:?}",
+            "[SEARCH STATS] {},{},{:?},{:?},{:?}",
             self.ply,
             self.game_phase,
             self.soft_move_time,

@@ -2,7 +2,7 @@
 use std::{
     env,
     fs::{File, OpenOptions},
-    io::Write,
+    io::{BufWriter, Write},
 };
 
 use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
@@ -41,7 +41,7 @@ pub struct Engine {
 
     #[cfg(feature = "logging")]
     /// The log file to write the log to.
-    log_file: File,
+    log_file: BufWriter<File>,
 
     #[cfg(feature = "logging")]
     /// Contains a log about the current search.
@@ -61,7 +61,11 @@ impl Engine {
             Err(err) => panic!("Failed to open log file: {err}"),
         };
         #[cfg(feature = "logging")]
-        if let Err(err) = writeln!(&mut log_file, "=== START LOG ===") {
+        if let Err(err) = writeln!(
+            &mut log_file,
+            "=== START LOG ===\n{}",
+            SearchLog::search_stats_header()
+        ) {
             panic!("Failed to write to log file: {err}");
         }
 
@@ -80,10 +84,17 @@ impl Engine {
             search_stop_rx,
 
             #[cfg(feature = "logging")]
-            log_file,
+            log_file: BufWriter::new(log_file),
 
             #[cfg(feature = "logging")]
             search_log: SearchLog::default(),
+        }
+    }
+
+    #[cfg(feature = "logging")]
+    pub fn flush_log_file(&mut self) {
+        if let Err(err) = self.log_file.flush() {
+            panic!("Failed to flush log file: {err}");
         }
     }
 
@@ -147,13 +158,9 @@ impl Engine {
                     );
                 }
 
-                // Only log to console if feature logging is disabled.
-                #[cfg(not(feature = "logging"))]
-                {
-                    // FIXME: gather PV should not be done here on the hot path?
-                    let pv = self.pv(pv_depth);
-                    uci_sender::search_info(depth, search_time, self.search.nodes, pv, eval);
-                }
+                // FIXME: gather PV should not be done here on the hot path?
+                let pv = self.pv(pv_depth);
+                uci_sender::search_info(depth, search_time, self.search.nodes, pv, eval);
             }
 
             // Search was cancelled.
@@ -162,6 +169,12 @@ impl Engine {
                 {
                     if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
                         panic!("Failed to write to log file: {err}");
+                    }
+
+                    // Only flush every 20 go commands to reduce overhead and have more comparable
+                    // performance.
+                    if self.search_log.ply % 20 == 0 {
+                        self.flush_log_file();
                     }
                 }
 

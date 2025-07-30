@@ -43,6 +43,9 @@ fn main() {
         }
     }
 
+    #[cfg(feature = "logging")]
+    engine.flush_log_file();
+
     if let Err(err) = uci_receiver_thread.join() {
         println!("Failed to join uci receiver thread: {err:#?}");
     }

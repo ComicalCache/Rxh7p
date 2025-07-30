@@ -1,5 +1,8 @@
 #[cfg(feature = "logging")]
-use std::{fs::File, io::Write};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 use std::time::Duration;
 
@@ -33,7 +36,6 @@ pub fn best_move(mv: ChessMove, ponder_move: Option<ChessMove>) {
     println!("{msg}");
 }
 
-#[cfg(not(feature = "logging"))]
 /// General info message.
 pub fn search_info(depth: usize, time: Duration, nodes: u64, pv: Vec<ChessMove>, score_cp: i64) {
     println!("{}", __search_info(depth, time, nodes, pv, score_cp));
@@ -42,7 +44,7 @@ pub fn search_info(depth: usize, time: Duration, nodes: u64, pv: Vec<ChessMove>,
 #[cfg(feature = "logging")]
 /// General info log entry.
 pub fn log_search_info(
-    log_file: &mut File,
+    log_file: &mut BufWriter<File>,
     depth: usize,
     time: Duration,
     nodes: u64,
@@ -51,7 +53,7 @@ pub fn log_search_info(
 ) {
     if let Err(err) = writeln!(
         log_file,
-        "{}",
+        "[SEARCH INFOS] {}",
         __search_info(depth, time, nodes, pv, score_cp)
     ) {
         panic!("Failed to write to log file: {err}");
