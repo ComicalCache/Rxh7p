@@ -10,7 +10,7 @@ use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 use chess::{Board, BoardStatus, ChessMove, Piece};
 
 #[cfg(feature = "logging")]
-use crate::engine::search_log::{MoveTimeLimitKind, SearchLog};
+use crate::engine::search_log::SearchLog;
 
 use crate::{
     engine::search::Search,
@@ -123,6 +123,11 @@ impl Engine {
                 break;
             }
 
+            // Check if the next search should be started if time control is enabled.
+            if !self.start_next_iteration() {
+                break;
+            }
+
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
 
@@ -194,44 +199,6 @@ impl Engine {
         }
     }
 
-    /// Returns the current principal variation of the internal state.
-    fn pv(&mut self, depth: usize) -> Vec<ChessMove> {
-        // At most print PV of eight plies.
-        let depth = depth.min(8);
-        let mut pv = Vec::with_capacity(depth);
-        let mut temp_board = self.board;
-
-        let mut idx = 0;
-        // Traverse the TT until the searched depth and gather the PV.
-        while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
-            && idx < depth
-        {
-            // Increment PV length at the beginning to be able to fully "unwind" the position stack.
-            idx += 1;
-
-            // Add new position to position stack to check for threefold repetition.
-            let new_board = temp_board.make_move_new(mv);
-            let irreversible = Engine::move_is_irreversible(&temp_board, &new_board, mv);
-            self.position_stack
-                .push((new_board.get_hash(), irreversible));
-
-            // Only add the position to the PV if it is not a threefold repetition.
-            if self.reversible_repetitions() >= 3 {
-                break;
-            }
-
-            pv.push(mv);
-            temp_board = new_board;
-        }
-
-        // Remove PV positions from the positions stack.
-        for _ in 0..idx {
-            self.position_stack.pop();
-        }
-
-        pv
-    }
-
     /// Checks if a stop condition for search is fulfilled.
     fn stop_search(&mut self) -> bool {
         // Received ponderhit command.
@@ -251,36 +218,9 @@ impl Engine {
             return false;
         }
 
-        // Move time limit.
-        if let Some(hard_time) = self.search.hard_move_time {
-            // Safe to unwrap since always both are set.
-            let soft_time = self.search.soft_move_time.unwrap();
-
-            let duration = SystemTime::now()
-                .duration_since(self.search.start_time)
-                .unwrap();
-
-            // Always stop when hard limit is reached.
-            if duration > hard_time {
-                #[cfg(feature = "logging")]
-                {
-                    // Save to unwrap since log entry was added before.
-                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Hard);
-                }
-
-                return true;
-            }
-
-            // If the search was not volatile, abide to soft time limit.
-            if !self.search.volatility && duration > soft_time {
-                #[cfg(feature = "logging")]
-                {
-                    // Save to unwrap since log entry was added before.
-                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Soft);
-                }
-
-                return true;
-            }
+        // Only check this every couple of nodes to avoid getting the system time every ply.
+        if self.search.ply % 256 == 0 && self.stop_search_time() {
+            return true;
         }
 
         // Node limit.

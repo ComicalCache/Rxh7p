@@ -110,6 +110,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 <details>
 
 - https://www.chessprogramming.org/Time_Management
+- https://www.chessprogramming.org/CPW-Engine_chronos
 
 </details>
 

@@ -3,6 +3,7 @@ mod engine;
 pub use engine::Engine;
 
 mod engine_repetition;
+mod engine_time_control;
 mod engine_uci;
 mod search;
 
