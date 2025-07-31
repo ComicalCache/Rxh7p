@@ -87,6 +87,8 @@ pub fn quiescence(board: &Board) -> impl Iterator<Item = ChessMove> {
     let mut moves = MoveGen::new_legal(board);
     moves.set_iterator_mask(orderer_masks::captures_mask(board));
 
+    // FIXME: add delta pruning.
+
     // Reverse since sort is ascending.
     orderer_see::see_order_captures(board, &mut moves)
         .into_iter()

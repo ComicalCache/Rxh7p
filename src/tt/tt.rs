@@ -33,7 +33,12 @@ impl TT {
     pub fn set(&mut self, hash: u64, entry: TtEntry) {
         // Depth replacement.
         if let Some(curr_entry) = self.entries.get(&hash) {
-            if curr_entry.depth <= entry.depth {
+            // Replace if new entry is from deeper search.
+            // Replace if new entry is of higher priority and within depth distance.
+            if curr_entry.depth <= entry.depth
+                || (curr_entry.flag < entry.flag
+                    && curr_entry.depth.abs_diff(entry.depth) < entry.flag.depth_distance())
+            {
                 self.entries.insert(hash, entry);
             }
         } else {

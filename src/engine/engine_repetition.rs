@@ -3,33 +3,20 @@ use chess::{Board, ChessMove, Color, Piece};
 use crate::engine::Engine;
 
 impl Engine {
-    /// Checks if the current position is a threefold repetition.
-    pub(super) fn repetition(&self) -> bool {
-        // Can't be a three fold repetition if not sufficient moves have been played.
-        if self.position_stack.len() < 8 {
-            return false;
-        }
-
+    /// Counts the number of reversible repetitions of the last position on the position stack.
+    pub(super) fn reversible_repetitions(&self) -> usize {
         // Save to unwrap since at least the start pos exists.
         let target_hash = self.position_stack.last().unwrap().0;
-        let mut repetitions = 1;
-        for idx in (0..self.position_stack.len() - 1).rev() {
-            // Don't search past irreversible moves.
-            if self.position_stack[idx].1 {
-                break;
-            }
 
-            // Check if it is a repetition.
-            if self.position_stack[idx].0 == target_hash {
-                repetitions += 1;
-
-                if repetitions == 3 {
-                    return true;
-                }
-            }
-        }
-
-        false
+        self.position_stack
+            .iter()
+            // Start at the back.
+            .rev()
+            // Iterate until the first irreversible move.
+            .take_while(|entry| !entry.1)
+            // Filter out position that don't match the target.
+            .filter(|entry| entry.0 == target_hash)
+            .count()
     }
 
     /// Checks if a move is irreversible.

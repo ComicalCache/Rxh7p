@@ -15,7 +15,7 @@ impl Engine {
         self.board = board;
         self.tt.clear();
         self.position_stack.clear();
-        self.position_stack.push((board.get_hash(), true));
+        self.position_stack.push((board.get_hash(), false));
         self.search = Search::default();
     }
 
@@ -84,19 +84,15 @@ impl Engine {
     /// Performs necessary tasks after a performed search.
     fn go_epilogue(&mut self) {
         // Find best move.
-        let best_move = self
-            .tt
-            .get(self.board.get_hash())
-            .expect("Failed to fetch board from TT")
-            .mv;
+        if let Some(best_move) = self.tt.get(self.board.get_hash()).map(|entry| entry.mv) {
+            let new_board = self.board.make_move_new(best_move);
 
-        let new_board = self.board.make_move_new(best_move);
-
-        // Send best follow-up as ponder move.
-        uci_sender::best_move(
-            best_move,
-            self.tt.get(new_board.get_hash()).map(|entry| entry.mv),
-        );
+            // Send best follow-up as ponder move.
+            uci_sender::best_move(
+                best_move,
+                self.tt.get(new_board.get_hash()).map(|entry| entry.mv),
+            );
+        }
     }
 
     fn set_move_time(&mut self, config: &GoCommandConfig) {

@@ -1,13 +1,27 @@
 use chess::{ChessMove, Color};
 
 /// Type of a TT entry.
+#[derive(PartialEq, PartialOrd)]
 pub enum TtEntryFlag {
-    /// Inside the search window.
-    Exact,
-    /// Beta cut-off.
-    Beta,
     /// Lower bound.
     Alpha,
+    /// Beta cut-off.
+    Beta,
+    /// Inside the search window.
+    Exact,
+}
+
+impl TtEntryFlag {
+    pub(super) fn depth_distance(&self) -> u16 {
+        match self {
+            // Allow alpha nodes only to replace same depth.
+            TtEntryFlag::Alpha => 0,
+            // Allow beta nodes to replace one depth below.
+            TtEntryFlag::Beta => 1,
+            // Allow exact nodes to replace two depth below.
+            TtEntryFlag::Exact => 2,
+        }
+    }
 }
 
 /// A TT entry contianing information about its type, found depth, move, color and value.

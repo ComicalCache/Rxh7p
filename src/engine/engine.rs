@@ -55,7 +55,7 @@ impl Engine {
         let log_file = {
             let log_path = env::args()
                 .nth(1)
-                .expect("Expected log file path in logging build.");
+                .expect("Expected log file path in logging build");
             let mut log_file = match OpenOptions::new().create(true).append(true).open(log_path) {
                 Ok(file) => file,
                 Err(err) => panic!("Failed to open log file: {err}"),
@@ -75,7 +75,7 @@ impl Engine {
 
         // Preallocate 120 plys to avoid many memory allocations early on.
         let mut position_stack = Vec::with_capacity(120);
-        position_stack.push((board.get_hash(), true));
+        position_stack.push((board.get_hash(), false));
 
         Engine {
             initial_board: board.get_hash(),
@@ -214,13 +214,14 @@ impl Engine {
             let irreversible = Engine::move_is_irreversible(&temp_board, &new_board, mv);
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
-            // Only add the position to the PV if it is not a threefold repetition.
-            if self.repetition() {
-                break;
-            }
 
             pv.push(mv);
             temp_board = new_board;
+
+            // Don't add moves past the threefold repetition.
+            if self.reversible_repetitions() == 3 {
+                break;
+            }
         }
 
         // Remove PV positions from the positions stack.
@@ -309,7 +310,7 @@ impl Engine {
         self.search.nodes += 1;
 
         // Return score of 0 if position is a three-fold repetition.
-        if self.repetition() {
+        if self.reversible_repetitions() == 3 {
             return Some(0);
         }
 
@@ -325,16 +326,19 @@ impl Engine {
 
         let prev_alpha = alpha;
 
-        // If viable entry exists return evaluation.
-        if let Some(entry) = self.tt.get(board.get_hash())
-            && entry.depth as usize >= depth
-        {
-            let eval = entry.value(board.side_to_move());
-            match entry.flag {
-                TtEntryFlag::Exact => return Some(eval),
-                TtEntryFlag::Beta if eval >= beta => return Some(eval),
-                TtEntryFlag::Alpha if eval <= alpha => return Some(eval),
-                _ => {}
+        // Skip lookup if position occured twice already to search a threefold repetition position.
+        if self.reversible_repetitions() <= 1 {
+            // If viable entry exists return evaluation.
+            if let Some(entry) = self.tt.get(board.get_hash())
+                && entry.depth as usize >= depth
+            {
+                let eval = entry.value(board.side_to_move());
+                match entry.flag {
+                    TtEntryFlag::Exact => return Some(eval),
+                    TtEntryFlag::Beta if eval >= beta => return Some(eval),
+                    TtEntryFlag::Alpha if eval <= alpha => return Some(eval),
+                    _ => {}
+                }
             }
         }
 
@@ -402,19 +406,8 @@ impl Engine {
             }
         }
 
-        let best_move = best_move.expect("PVS didn't find any move to make.");
-
-        // Store entry.
-        let flag = match (max_eval <= prev_alpha, max_eval >= beta) {
-            (true, _) => TtEntryFlag::Alpha,
-            (_, true) => TtEntryFlag::Beta,
-            _ => TtEntryFlag::Exact,
-        };
-
-        // Safe to unwrap, depth will never exceed 2^16...
-        let depth = u16::try_from(depth).unwrap();
-        let tt_entry = TtEntry::new(flag, depth, best_move, board.side_to_move(), max_eval);
-        self.tt.set(board.get_hash(), tt_entry);
+        let best_move = best_move.expect("PVS failed to find next move");
+        self.store_pvs_result(board, prev_alpha, beta, depth, best_move, max_eval);
 
         Some(max_eval)
     }
@@ -444,5 +437,27 @@ impl Engine {
         }
 
         max_eval
+    }
+
+    /// Stores the result of the PVS in the TT.
+    fn store_pvs_result(
+        &mut self,
+        board: Board,
+        alpha: i64,
+        beta: i64,
+        depth: usize,
+        mv: ChessMove,
+        eval: i64,
+    ) {
+        let flag = match (eval <= alpha, eval >= beta) {
+            (true, _) => TtEntryFlag::Alpha,
+            (_, true) => TtEntryFlag::Beta,
+            _ => TtEntryFlag::Exact,
+        };
+
+        // Safe to unwrap, depth will never exceed 2^16...
+        let depth = u16::try_from(depth).unwrap();
+        let tt_entry = TtEntry::new(flag, depth, mv, board.side_to_move(), eval);
+        self.tt.set(board.get_hash(), tt_entry);
     }
 }
