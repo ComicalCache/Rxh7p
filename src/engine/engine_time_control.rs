@@ -79,7 +79,7 @@ impl Engine {
             .duration_since(self.search.start_time)
             .unwrap()
             .mul(2)
-            > move_time
+            < move_time
     }
 
     /// Sets the move time of the next search according to the received go command config.

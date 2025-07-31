@@ -219,7 +219,7 @@ impl Engine {
         }
 
         // Only check this every couple of nodes to avoid getting the system time every ply.
-        if self.search.ply % 256 == 0 && self.stop_search_time() {
+        if self.search.nodes % 256 == 0 && self.stop_search_time() {
             return true;
         }
 
