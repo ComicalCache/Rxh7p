@@ -215,13 +215,13 @@ impl Engine {
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
 
-            pv.push(mv);
-            temp_board = new_board;
-
             // Don't add moves past the threefold repetition.
             if self.reversible_repetitions() == 3 {
                 break;
             }
+
+            pv.push(mv);
+            temp_board = new_board;
         }
 
         // Remove PV positions from the positions stack.
