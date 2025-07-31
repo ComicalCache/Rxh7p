@@ -215,8 +215,8 @@ impl Engine {
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
 
-            // Don't add moves past the threefold repetition.
-            if self.reversible_repetitions() == 3 {
+            // Only add the position to the PV if it is not a threefold repetition.
+            if self.reversible_repetitions() >= 3 {
                 break;
             }
 
@@ -310,7 +310,7 @@ impl Engine {
         self.search.nodes += 1;
 
         // Return score of 0 if position is a three-fold repetition.
-        if self.reversible_repetitions() == 3 {
+        if self.reversible_repetitions() >= 3 {
             return Some(0);
         }
 
