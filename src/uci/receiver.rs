@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use crate::uci::{UciCommand, uci_sender};
+use crate::uci::{UciCommand, sender};
 
 pub enum UciSearchStop {
     Ponderhit,
@@ -47,7 +47,7 @@ impl UciReceiver {
             match command {
                 // Don't propagate invalid commands to the engine.
                 UciCommand::Invalid => {}
-                UciCommand::Uci => uci_sender::id(),
+                UciCommand::Uci => sender::id(),
                 // Send here since main is busy.
                 UciCommand::Stop => self
                     .search_stop_tx

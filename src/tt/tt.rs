@@ -1,6 +1,6 @@
 use fnv::FnvHashMap;
 
-use crate::tt::tt_entry::TtEntry;
+use crate::tt::entry::TtEntry;
 
 /// A transposition table storing previously evaluated moves.
 pub struct TT {

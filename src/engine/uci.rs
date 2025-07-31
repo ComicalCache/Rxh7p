@@ -2,7 +2,7 @@ use chess::{Board, ChessMove};
 
 use crate::{
     engine::{Engine, search::Search},
-    uci::{GoCommandConfig, uci_sender},
+    uci::{GoCommandConfig, sender},
 };
 
 impl Engine {
@@ -85,7 +85,7 @@ impl Engine {
             let new_board = self.board.make_move_new(best_move);
 
             // Send best follow-up as ponder move.
-            uci_sender::best_move(
+            sender::best_move(
                 best_move,
                 self.tt.get(new_board.get_hash()).map(|entry| entry.mv),
             );

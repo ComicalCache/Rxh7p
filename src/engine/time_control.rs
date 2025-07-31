@@ -6,7 +6,7 @@ use std::{
 use chess::Color;
 
 #[cfg(feature = "logging")]
-use crate::engine::search_log::MoveTimeLimitKind;
+use crate::engine::search::MoveTimeLimitKind;
 
 use crate::{engine::Engine, evaluator, uci::GoCommandConfig};
 
@@ -55,6 +55,7 @@ impl Engine {
 
         // The CPW engine chronos modules measured that the next iteration roughly takes the same
         // time as all previous iterations. This assumption is also used here.
+        // FIXME: check this assumption for this engine.
         //
         // time_used = now - start_time
         // predicted_time = time_used

@@ -1,5 +1,5 @@
 use crate::{
-    engine::{Engine, search_log::SearchLog},
+    engine::{Engine, search::SearchLog},
     evaluator,
 };
 

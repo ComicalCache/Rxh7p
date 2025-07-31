@@ -10,14 +10,14 @@ use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 use chess::{Board, BoardStatus, ChessMove, Piece};
 
 #[cfg(feature = "logging")]
-use crate::engine::search_log::SearchLog;
+use crate::engine::search::SearchLog;
 
 use crate::{
     engine::search::Search,
     evaluator::{self, piece_value},
     orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::{UciSearchStop, uci_sender},
+    uci::{UciSearchStop, sender},
 };
 
 /// The chess engine itself, it performs the search and data keeping.
@@ -161,7 +161,7 @@ impl Engine {
                 #[cfg(feature = "logging")]
                 {
                     let pv = self.pv(pv_depth);
-                    uci_sender::log_search_info(
+                    sender::log_search_info(
                         &mut self.log_file,
                         depth,
                         search_time,
@@ -173,7 +173,7 @@ impl Engine {
 
                 // FIXME: gather PV should not be done here on the hot path?
                 let pv = self.pv(pv_depth);
-                uci_sender::search_info(depth, search_time, self.search.nodes, pv, eval);
+                sender::search_info(depth, search_time, self.search.nodes, pv, eval);
             }
 
             // Search was cancelled.

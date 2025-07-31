@@ -30,27 +30,27 @@ impl Debug for MoveTimeLimitKind {
 #[derive(Default)]
 pub struct SearchLog {
     /// How long the calculated hard move time for this search was.
-    pub(super) hard_move_time: Option<Duration>,
+    pub hard_move_time: Option<Duration>,
     /// How long the calculated soft move time for this search was.
-    pub(super) soft_move_time: Option<Duration>,
+    pub soft_move_time: Option<Duration>,
     /// If the search ended using the soft or hard move time limit.
-    pub(super) time_limit_kind: Option<MoveTimeLimitKind>,
+    pub time_limit_kind: Option<MoveTimeLimitKind>,
 
     /// The ply of the position.
-    pub(super) ply: usize,
+    pub ply: usize,
     /// The game phase of the position.
-    pub(super) game_phase: u32,
+    pub game_phase: u32,
 
     /// Evaluation of the search before checking for volatility.
-    pub(super) pre_volatility_eval: i64,
+    pub pre_volatility_eval: i64,
     /// Evaluation of the search.
-    pub(super) eval: i64,
+    pub eval: i64,
     /// Search depth.
-    pub(super) depth: usize,
+    pub depth: usize,
 }
 
 impl SearchLog {
-    pub(super) fn search_stats_header() -> &'static str {
+    pub fn search_stats_header() -> &'static str {
         "[SEARCH STATS] ply,game phase,depth,pre volatility eval,eval,soft move time,hard move time,time limit kind"
     }
 }

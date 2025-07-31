@@ -3,34 +3,34 @@ use std::time::{Duration, SystemTime};
 use chess::ChessMove;
 
 /// Contains information about the currently conducted search.
-pub(super) struct Search {
+pub struct Search {
     /// Ponder mode.
-    pub(super) ponder: bool,
+    pub ponder: bool,
 
     /// Moves to search.
-    pub(super) moves: Vec<ChessMove>,
+    pub moves: Vec<ChessMove>,
     /// Stop infinite search.
-    pub(super) stop_infinite: bool,
+    pub stop_infinite: bool,
 
     /// Ply of played moves during search.
-    pub(super) ply: usize,
+    pub ply: usize,
     /// Count of nodes searched.
-    pub(super) nodes: u64,
+    pub nodes: u64,
 
     /// When the search started.
-    pub(super) start_time: SystemTime,
+    pub start_time: SystemTime,
 
     /// Determines if the position is volatile.
-    pub(super) volatility: bool,
+    pub volatility: bool,
 
     /// Search no ply deeper than this.
-    pub(super) depth: Option<usize>,
+    pub depth: Option<usize>,
     /// Search no more nodes than this.
-    pub(super) node_limit: Option<u64>,
+    pub node_limit: Option<u64>,
     /// Hard think time limit.
-    pub(super) hard_move_time: Option<Duration>,
+    pub hard_move_time: Option<Duration>,
     /// Soft think time limit.
-    pub(super) soft_move_time: Option<Duration>,
+    pub soft_move_time: Option<Duration>,
 }
 
 impl Default for Search {
