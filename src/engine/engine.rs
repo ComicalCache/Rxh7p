@@ -10,7 +10,7 @@ use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 use chess::{Board, BoardStatus, ChessMove, Piece};
 
 #[cfg(feature = "logging")]
-use crate::engine::search::SearchLog;
+use crate::engine::search::{MoveTimeLimitKind, SearchLog};
 
 use crate::{
     engine::search::Search,
@@ -135,6 +135,7 @@ impl Engine {
                 #[cfg(feature = "logging")]
                 {
                     self.search_log.skipped_next_iteration = true;
+                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Skip);
                 }
 
                 break;

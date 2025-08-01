@@ -11,6 +11,8 @@ pub enum MoveTimeLimitKind {
     Soft,
     /// Hard move time limit.
     Hard,
+    /// Don't search for another iteration.
+    Skip,
 }
 
 impl Debug for MoveTimeLimitKind {
@@ -21,6 +23,7 @@ impl Debug for MoveTimeLimitKind {
             match self {
                 MoveTimeLimitKind::Soft => "Soft",
                 MoveTimeLimitKind::Hard => "Hard",
+                MoveTimeLimitKind::Skip => "Skip",
             }
         )
     }
