@@ -156,7 +156,8 @@ impl Engine {
             if time > safety_margin {
                 self.search.hard_move_time = Some(Duration::from_millis(hard_move_time));
                 // Set soft time limit to be 75% of the hard time limit.
-                self.search.soft_move_time = Some(Duration::from_millis(15 * hard_move_time / 20));
+                // self.search.soft_move_time = Some(Duration::from_millis(15 * hard_move_time / 20));
+                self.search.soft_move_time = Some(Duration::from_millis(hard_move_time));
             }
         }
     }
