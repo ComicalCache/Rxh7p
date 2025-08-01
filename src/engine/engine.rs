@@ -116,6 +116,7 @@ impl Engine {
         let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
         let mut eval = 0;
+        let mut pv_depth = 0;
         for depth in 1.. {
             // Use passed depth or at most depth 35. The PVS search stop must not check for depth
             // because of this. Search extensions will not be affected by this limit however.
@@ -137,7 +138,6 @@ impl Engine {
             let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
 
             // If the search was not interrupted.
-            let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
                 // Log eval at ply 3.
                 #[cfg(feature = "logging")]
@@ -183,23 +183,23 @@ impl Engine {
 
             // Search was cancelled.
             if new_eval.is_none() {
-                #[cfg(feature = "logging")]
-                {
-                    self.search_log.depth = pv_depth;
-                    self.search_log.eval = eval;
-
-                    if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
-                        panic!("Failed to write to log file: {err}");
-                    }
-
-                    // Only flush every 20 go commands to reduce overhead and have more comparable
-                    // performance.
-                    if self.search_log.ply % 20 == 0 {
-                        self.flush_log_file();
-                    }
-                }
-
                 break;
+            }
+        }
+
+        #[cfg(feature = "logging")]
+        {
+            self.search_log.depth = pv_depth;
+            self.search_log.eval = eval;
+
+            if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
+                panic!("Failed to write to log file: {err}");
+            }
+
+            // Only flush every 20 go commands to reduce overhead and have more comparable
+            // performance.
+            if self.search_log.ply % 20 == 0 {
+                self.flush_log_file();
             }
         }
     }
