@@ -68,8 +68,8 @@ impl Display for SearchLog {
             self.skipped_next_iteration,
             self.pre_volatility_eval,
             self.eval,
-            self.soft_move_time,
-            self.hard_move_time,
+            self.soft_move_time.map(|duration| duration.as_millis()),
+            self.hard_move_time.map(|duration| duration.as_millis()),
             self.time_limit_kind
         )
     }
