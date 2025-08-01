@@ -35,6 +35,8 @@ pub struct SearchLog {
     pub soft_move_time: Option<Duration>,
     /// If the search ended using the soft or hard move time limit.
     pub time_limit_kind: Option<MoveTimeLimitKind>,
+    /// If the search stopped before starting a new iteration on low time.
+    pub skipped_next_iteration: bool,
 
     /// The ply of the position.
     pub ply: usize,
@@ -51,7 +53,7 @@ pub struct SearchLog {
 
 impl SearchLog {
     pub fn search_stats_header() -> &'static str {
-        "[SEARCH STATS] ply,game phase,depth,pre volatility eval,eval,soft move time,hard move time,time limit kind"
+        "[SEARCH STATS] ply,game phase,depth,skipped next iteration,pre volatility eval,eval,soft move time,hard move time,time limit kind"
     }
 }
 
@@ -59,10 +61,11 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?}",
+            "[SEARCH STATS] {},{},{},{},{},{},{:?},{:?},{:?}",
             self.ply,
             self.game_phase,
             self.depth,
+            self.skipped_next_iteration,
             self.pre_volatility_eval,
             self.eval,
             self.soft_move_time,

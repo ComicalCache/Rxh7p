@@ -125,6 +125,11 @@ impl Engine {
 
             // Check if the next search should be started if time control is enabled.
             if !self.start_next_iteration() {
+                #[cfg(feature = "logging")]
+                {
+                    self.search_log.skipped_next_iteration = true;
+                }
+
                 break;
             }
 
