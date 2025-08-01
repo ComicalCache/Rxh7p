@@ -115,6 +115,12 @@ impl Engine {
         // Search volatility threshold.
         let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
+        // Store previous PV move to check for PV changes, or default is non is available.
+        let mut prev_pv = self
+            .tt
+            .get(self.board.get_hash())
+            .map_or(ChessMove::default(), |entry| entry.mv);
+
         let mut eval = 0;
         let mut pv_depth = 0;
         for depth in 1.. {
@@ -139,20 +145,18 @@ impl Engine {
 
             // If the search was not interrupted.
             if let Some(new_eval) = new_eval {
-                // Log eval at ply 3.
-                #[cfg(feature = "logging")]
-                if depth == 3 {
-                    self.search_log.pre_volatility_eval = eval;
-                }
+                // Safe to unwrap since if search finished the entry must exist.
+                let new_pv = self.tt.get(self.board.get_hash()).unwrap().mv;
 
-                // If eval changes a lot after 3rd ply, extend sort time.
-                if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
-                    self.search.volatility = true;
-                }
+                // If eval changes a lot, extend search time.
+                // If PV changes, extend search time.
+                self.search.volatility =
+                    (eval - new_eval).abs() > volatility_threshold || prev_pv != new_pv;
 
                 // Set the PV search depth to the current depth and eval to new_eval.
                 eval = new_eval;
                 pv_depth = depth;
+                prev_pv = new_pv;
             }
 
             // Send information of iteration but skip first four iterations to decrease traffic.
@@ -224,7 +228,7 @@ impl Engine {
         }
 
         // Only check this every couple of nodes to avoid getting the system time every ply.
-        if self.search.nodes & 0x1FF == 0 && self.stop_search_time() {
+        if self.search.nodes.trailing_zeros() >= 9 && self.stop_search_time() {
             return true;
         }
 

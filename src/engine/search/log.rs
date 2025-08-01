@@ -43,8 +43,6 @@ pub struct SearchLog {
     /// The game phase of the position.
     pub game_phase: u32,
 
-    /// Evaluation of the search before checking for volatility.
-    pub pre_volatility_eval: i64,
     /// Evaluation of the search.
     pub eval: i64,
     /// Search depth.
@@ -61,12 +59,11 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[SEARCH STATS] {},{},{},{},{},{},{:?},{:?},{:?}",
+            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?}",
             self.ply,
             self.game_phase,
             self.depth,
             self.skipped_next_iteration,
-            self.pre_volatility_eval,
             self.eval,
             self.soft_move_time.map(|duration| duration.as_millis()),
             self.hard_move_time.map(|duration| duration.as_millis()),

@@ -13,7 +13,6 @@ impl Engine {
             skipped_next_iteration: false,
             ply: self.position_stack.len() - 1,
             game_phase: evaluator::game_phase(&self.board),
-            pre_volatility_eval: 0,
             eval: 0,
             depth: 0,
         };
