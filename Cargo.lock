@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "Rxh7p"
-version = "1.2.4-rev8"
+version = "1.2.4-rev9"
 dependencies = [
  "chess",
  "fnv",
