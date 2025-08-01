@@ -125,14 +125,14 @@ impl Engine {
             }
 
             // Check if the next search should be started if time control is enabled.
-            if !self.start_next_iteration() {
-                #[cfg(feature = "logging")]
-                {
-                    self.search_log.skipped_next_iteration = true;
-                }
-
-                break;
-            }
+            //if !self.start_next_iteration() {
+            //    #[cfg(feature = "logging")]
+            //    {
+            //        self.search_log.skipped_next_iteration = true;
+            //    }
+            //
+            //    break;
+            //}
 
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
@@ -224,12 +224,12 @@ impl Engine {
         }
 
         // Only check this every couple of nodes to avoid getting the system time every ply.
-        //if self.search.nodes % 256 == 0 && self.stop_search_time() {
-        //    return true;
-        //}
-        if self.stop_search_time() {
+        if self.search.nodes & 0x1FF == 0 && self.stop_search_time() {
             return true;
         }
+        //if self.stop_search_time() {
+        //    return true;
+        //}
 
         // Node limit.
         if let Some(nodes) = self.search.node_limit
