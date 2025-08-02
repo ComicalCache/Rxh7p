@@ -1,7 +1,7 @@
 use chess::{Board, ChessMove, EMPTY, MoveGen};
 
 use crate::{
-    orderer::{orderer_entry::OrdererEntry, orderer_masks, orderer_see},
+    orderer::{entry::OrdererEntry, masks, see},
     tt::{TT, TtEntryFlag},
 };
 
@@ -19,8 +19,8 @@ pub fn all(board: &Board, depth: usize, tt: &TT) -> Vec<ChessMove> {
     let mut ret = Vec::with_capacity(moves.len() + 1);
 
     // Get all captures and order them.
-    moves.set_iterator_mask(orderer_masks::captures_mask(board));
-    let captures = orderer_see::see_order_captures(board, &mut moves);
+    moves.set_iterator_mask(masks::captures_mask(board));
+    let captures = see::see_order_captures(board, &mut moves);
 
     moves.set_iterator_mask(!EMPTY);
     // Create with potentially too much capacity to avoid unnecessary allocations.
@@ -85,12 +85,12 @@ pub fn all(board: &Board, depth: usize, tt: &TT) -> Vec<ChessMove> {
 /// SEE orders all available captures for quiescence search.
 pub fn quiescence(board: &Board) -> impl Iterator<Item = ChessMove> {
     let mut moves = MoveGen::new_legal(board);
-    moves.set_iterator_mask(orderer_masks::captures_mask(board));
+    moves.set_iterator_mask(masks::captures_mask(board));
 
     // FIXME: add delta pruning.
 
     // Reverse since sort is ascending.
-    orderer_see::see_order_captures(board, &mut moves)
+    see::see_order_captures(board, &mut moves)
         .into_iter()
         .map(|entry| entry.mv)
         .rev()

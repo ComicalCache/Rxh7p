@@ -1,7 +1,7 @@
-mod uci_command;
-pub use uci_command::{GoCommandConfig, UciCommand};
+mod command;
+pub use command::{GoCommandConfig, UciCommand};
 
-mod uci_receiver;
-pub use uci_receiver::{UciReceiver, UciSearchStop};
+mod receiver;
+pub use receiver::{UciReceiver, UciSearchStop};
 
-pub mod uci_sender;
+pub mod sender;

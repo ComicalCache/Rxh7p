@@ -2,7 +2,7 @@ use chess::{BitBoard, Board, ChessMove, MoveGen, Square};
 
 use crate::{
     evaluator,
-    orderer::{orderer_entry::OrdererEntry, orderer_masks},
+    orderer::{entry::OrdererEntry, masks},
 };
 
 /// Orders all captures according to their SEE in ascending order.
@@ -65,7 +65,7 @@ fn smallest_attack(board: &Board, square: Square) -> Option<ChessMove> {
     // the recursion... :(
     let mut captures = MoveGen::new_legal(board);
     // FIXME: this excludes en-passant.
-    captures.set_iterator_mask(orderer_masks::captures_mask(board) & BitBoard::from_square(square));
+    captures.set_iterator_mask(masks::captures_mask(board) & BitBoard::from_square(square));
 
     let mut smallest_attack = None;
     let mut smallest_attack_value = i64::MAX;

@@ -4,7 +4,7 @@ use chess::Board;
 
 use crate::{
     engine::Engine,
-    uci::{UciCommand, UciReceiver, UciSearchStop, uci_sender},
+    uci::{UciCommand, UciReceiver, UciSearchStop, sender},
 };
 
 mod engine;
@@ -28,7 +28,7 @@ fn main() {
             UciCommand::Invalid => unreachable!("Received unreachable command"),
             // Simple handshake by the receiver.
             UciCommand::Uci => unreachable!("Received uci command"),
-            UciCommand::IsReady => uci_sender::ready_ok(),
+            UciCommand::IsReady => sender::ready_ok(),
             UciCommand::UciNewGame => engine.uci_init(Board::default()),
             UciCommand::Position(board, moves) => engine.uci_position(board, moves),
             UciCommand::Go(config) => engine.go(config),

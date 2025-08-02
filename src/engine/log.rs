@@ -1,5 +1,5 @@
 use crate::{
-    engine::{Engine, search_log::SearchLog},
+    engine::{Engine, search::SearchLog},
     evaluator,
 };
 
@@ -10,9 +10,9 @@ impl Engine {
             hard_move_time: self.search.hard_move_time,
             soft_move_time: self.search.soft_move_time,
             time_limit_kind: None,
+            skipped_next_iteration: false,
             ply: self.position_stack.len() - 1,
             game_phase: evaluator::game_phase(&self.board),
-            pre_volatility_eval: 0,
             eval: 0,
             depth: 0,
         };

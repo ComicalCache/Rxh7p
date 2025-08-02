@@ -6,10 +6,10 @@ The engine is (mostly) UCI capable and can be used in GUIs or hosted on Lichess.
 
 ## Benchmarking
 
-Benchmarking can be done using fastchess.
+Benchmarking can be done using fastchess. The kasparov game book contains >3000 games, the carlsen book >6000 games.
 
 ```sh
-fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -openings file=openings.pgn format=pgn plies=14 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new cmd=new -engine name=old cmd=old -each tc=30+0.5 restart=on
+fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new cmd=new -engine name=old cmd=old -each tc=30+0.5 restart=on
 ```
 
 # Bibliography
@@ -110,6 +110,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 <details>
 
 - https://www.chessprogramming.org/Time_Management
+- https://www.chessprogramming.org/CPW-Engine_chronos
 
 </details>
 

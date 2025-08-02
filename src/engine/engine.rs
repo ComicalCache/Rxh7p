@@ -10,14 +10,14 @@ use std::{cmp::max, sync::mpsc::Receiver, time::SystemTime};
 use chess::{Board, BoardStatus, ChessMove, Piece};
 
 #[cfg(feature = "logging")]
-use crate::engine::search_log::{MoveTimeLimitKind, SearchLog};
+use crate::engine::search::{MoveTimeLimitKind, SearchLog};
 
 use crate::{
     engine::search::Search,
     evaluator::{self, piece_value},
     orderer,
     tt::{TT, TtEntry, TtEntryFlag},
-    uci::{UciSearchStop, uci_sender},
+    uci::{UciSearchStop, sender},
 };
 
 /// The chess engine itself, it performs the search and data keeping.
@@ -115,7 +115,14 @@ impl Engine {
         // Search volatility threshold.
         let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
+        // Store previous PV move to check for PV changes, or default is non is available.
+        let mut prev_pv = self
+            .tt
+            .get(self.board.get_hash())
+            .map_or(ChessMove::default(), |entry| entry.mv);
+
         let mut eval = 0;
+        let mut pv_depth = 0;
         for depth in 1.. {
             // Use passed depth or at most depth 35. The PVS search stop must not check for depth
             // because of this. Search extensions will not be affected by this limit however.
@@ -123,26 +130,34 @@ impl Engine {
                 break;
             }
 
+            // Check if the next search should be started if time control is enabled.
+            if !self.start_next_iteration() {
+                #[cfg(feature = "logging")]
+                {
+                    self.search_log.skipped_next_iteration = true;
+                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Skip);
+                }
+
+                break;
+            }
+
             // i64::MIN + 1 to avoid overflow when negating the value.
             let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
 
             // If the search was not interrupted.
-            let mut pv_depth = depth - 1;
             if let Some(new_eval) = new_eval {
-                // Log eval at ply 3.
-                #[cfg(feature = "logging")]
-                if depth == 3 {
-                    self.search_log.pre_volatility_eval = eval;
-                }
+                // Safe to unwrap since if search finished the entry must exist.
+                let new_pv = self.tt.get(self.board.get_hash()).unwrap().mv;
 
-                // If eval changes a lot after 3rd ply, extend sort time.
-                if depth > 3 && (eval - new_eval).abs() > volatility_threshold {
-                    self.search.volatility = true;
-                }
+                // If eval changes a lot, extend search time.
+                // If PV changes, extend search time.
+                self.search.volatility =
+                    (eval - new_eval).abs() > volatility_threshold || prev_pv != new_pv;
 
                 // Set the PV search depth to the current depth and eval to new_eval.
                 eval = new_eval;
                 pv_depth = depth;
+                prev_pv = new_pv;
             }
 
             // Send information of iteration but skip first four iterations to decrease traffic.
@@ -156,7 +171,7 @@ impl Engine {
                 #[cfg(feature = "logging")]
                 {
                     let pv = self.pv(pv_depth);
-                    uci_sender::log_search_info(
+                    sender::log_search_info(
                         &mut self.log_file,
                         depth,
                         search_time,
@@ -168,68 +183,30 @@ impl Engine {
 
                 // FIXME: gather PV should not be done here on the hot path?
                 let pv = self.pv(pv_depth);
-                uci_sender::search_info(depth, search_time, self.search.nodes, pv, eval);
+                sender::search_info(depth, search_time, self.search.nodes, pv, eval);
             }
 
             // Search was cancelled.
             if new_eval.is_none() {
-                #[cfg(feature = "logging")]
-                {
-                    self.search_log.depth = pv_depth;
-                    self.search_log.eval = eval;
-
-                    if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
-                        panic!("Failed to write to log file: {err}");
-                    }
-
-                    // Only flush every 20 go commands to reduce overhead and have more comparable
-                    // performance.
-                    if self.search_log.ply % 20 == 0 {
-                        self.flush_log_file();
-                    }
-                }
-
                 break;
             }
         }
-    }
 
-    /// Returns the current principal variation of the internal state.
-    fn pv(&mut self, depth: usize) -> Vec<ChessMove> {
-        // At most print PV of eight plies.
-        let depth = depth.min(8);
-        let mut pv = Vec::with_capacity(depth);
-        let mut temp_board = self.board;
-
-        let mut idx = 0;
-        // Traverse the TT until the searched depth and gather the PV.
-        while let Some(mv) = self.tt.get(temp_board.get_hash()).map(|entry| entry.mv)
-            && idx < depth
+        #[cfg(feature = "logging")]
         {
-            // Increment PV length at the beginning to be able to fully "unwind" the position stack.
-            idx += 1;
+            self.search_log.depth = pv_depth;
+            self.search_log.eval = eval;
 
-            // Add new position to position stack to check for threefold repetition.
-            let new_board = temp_board.make_move_new(mv);
-            let irreversible = Engine::move_is_irreversible(&temp_board, &new_board, mv);
-            self.position_stack
-                .push((new_board.get_hash(), irreversible));
-
-            // Only add the position to the PV if it is not a threefold repetition.
-            if self.reversible_repetitions() >= 3 {
-                break;
+            if let Err(err) = writeln!(&mut self.log_file, "{}", self.search_log) {
+                panic!("Failed to write to log file: {err}");
             }
 
-            pv.push(mv);
-            temp_board = new_board;
+            // Only flush every 20 go commands to reduce overhead and have more comparable
+            // performance.
+            if self.search_log.ply % 20 == 0 {
+                self.flush_log_file();
+            }
         }
-
-        // Remove PV positions from the positions stack.
-        for _ in 0..idx {
-            self.position_stack.pop();
-        }
-
-        pv
     }
 
     /// Checks if a stop condition for search is fulfilled.
@@ -251,36 +228,9 @@ impl Engine {
             return false;
         }
 
-        // Move time limit.
-        if let Some(hard_time) = self.search.hard_move_time {
-            // Safe to unwrap since always both are set.
-            let soft_time = self.search.soft_move_time.unwrap();
-
-            let duration = SystemTime::now()
-                .duration_since(self.search.start_time)
-                .unwrap();
-
-            // Always stop when hard limit is reached.
-            if duration > hard_time {
-                #[cfg(feature = "logging")]
-                {
-                    // Save to unwrap since log entry was added before.
-                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Hard);
-                }
-
-                return true;
-            }
-
-            // If the search was not volatile, abide to soft time limit.
-            if !self.search.volatility && duration > soft_time {
-                #[cfg(feature = "logging")]
-                {
-                    // Save to unwrap since log entry was added before.
-                    self.search_log.time_limit_kind = Some(MoveTimeLimitKind::Soft);
-                }
-
-                return true;
-            }
+        // Only check this every couple of nodes to avoid getting the system time every ply.
+        if self.search.nodes.trailing_zeros() >= 9 && self.stop_search_time() {
+            return true;
         }
 
         // Node limit.
