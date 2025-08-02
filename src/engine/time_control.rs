@@ -13,9 +13,9 @@ use crate::{engine::Engine, evaluator, uci::GoCommandConfig};
 impl Engine {
     /// Move time limit.
     pub(super) fn stop_search_time(&mut self) -> bool {
-        if let Some(hard_time) = self.search.hard_move_time {
+        if let Some(soft_time) = self.search.soft_move_time {
             // Safe to unwrap since always both are set.
-            let soft_time = self.search.soft_move_time.unwrap();
+            let hard_time = self.search.hard_move_time.unwrap();
 
             let duration = SystemTime::now()
                 .duration_since(self.search.start_time)
@@ -49,7 +49,7 @@ impl Engine {
 
     /// Checks if another iteration of PVS should be started based on the remaining time.
     pub(super) fn start_next_iteration(&mut self) -> bool {
-        if self.search.hard_move_time.is_none() {
+        if self.search.soft_move_time.is_none() {
             return false;
         }
 
@@ -124,24 +124,24 @@ impl Engine {
                 .map(|time| (time, config.binc.unwrap_or(Duration::ZERO))),
         } {
             // Just divide remaining time by 20 plus 3/4th of the increment.
-            self.search.hard_move_time = Some((time / 20) + (3 * inc / 4));
+            self.search.soft_move_time = Some((time / 20) + (3 * inc / 4));
         }
 
         // Go movetime was set.
         if let Some(time) = config.move_time {
-            if let Some(move_time) = self.search.hard_move_time {
+            if let Some(move_time) = self.search.soft_move_time {
                 // If move time is less than previously calculated time, use that.
                 if time < move_time {
-                    self.search.hard_move_time = Some(time);
+                    self.search.soft_move_time = Some(time);
                 }
             } else {
                 // No time set yet.
-                self.search.hard_move_time = Some(time);
+                self.search.soft_move_time = Some(time);
             }
         }
 
         // Set soft move time.
-        self.search.soft_move_time = self.search.hard_move_time;
+        self.search.hard_move_time = self.search.soft_move_time;
 
         if let Some(time) = self.search.hard_move_time {
             let (num, denom) = MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize];
@@ -150,13 +150,13 @@ impl Engine {
             #[allow(clippy::cast_possible_truncation)]
             let time = (num * time.as_millis() as u64) / denom;
             let safety_margin = 10;
-            let hard_move_time = time - safety_margin;
+            let soft_move_time = time - safety_margin;
 
-            // Subtract a safety margin from the hard time limit to avoid losing by time.
+            // Subtract a safety margin from the soft time limit to avoid losing by time.
             if time > safety_margin {
-                self.search.hard_move_time = Some(Duration::from_millis(hard_move_time));
-                // Set soft time limit to be 80% of the hard time limit.
-                self.search.soft_move_time = Some(Duration::from_millis(8 * hard_move_time / 10));
+                self.search.soft_move_time = Some(Duration::from_millis(soft_move_time));
+                // Set hard time limit to be 150% of the soft time limit.
+                self.search.hard_move_time = Some(Duration::from_millis(15 * soft_move_time / 10));
             }
         }
     }
