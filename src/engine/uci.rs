@@ -69,10 +69,7 @@ impl Engine {
 
         self.set_move_time(&config);
 
-        // Set moves to search.
         self.search.moves = config.searchmoves;
-
-        // Set remaining parameters.
         self.search.node_limit = config.nodes;
         self.search.depth = config.depth;
         self.search.ponder = config.ponder;
@@ -82,12 +79,12 @@ impl Engine {
     fn go_epilogue(&mut self) {
         // Find best move.
         if let Some(best_move) = self.tt.get(self.board.get_hash()).map(|entry| entry.mv) {
-            let new_board = self.board.make_move_new(best_move);
-
-            // Send best follow-up as ponder move.
             sender::best_move(
                 best_move,
-                self.tt.get(new_board.get_hash()).map(|entry| entry.mv),
+                self.tt
+                    // Send best follow-up as ponder move.
+                    .get(self.board.make_move_new(best_move).get_hash())
+                    .map(|entry| entry.mv),
             );
         }
     }

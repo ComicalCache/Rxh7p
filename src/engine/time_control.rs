@@ -130,27 +130,35 @@ impl Engine {
         // Set soft move time.
         self.search.hard_move_time = self.search.soft_move_time;
 
-        // Add a safety margin to not lose by time.
+        // Use a safety margin to not lose by time.
         let move_time_safety_margin = 10;
 
         if let Some(time) = self.search.hard_move_time {
             let (num, denom) = MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize];
 
+            // This should never truncate unless the time is about 1.8e19ms, which would be a bit
+            // more than 570 million years.
             // Scale time by game phase.
             #[allow(clippy::cast_possible_truncation)]
             let time = (num * time.as_millis() as u64) / denom;
-            let soft_move_time = time - move_time_safety_margin;
 
             // Subtract a safety margin from the soft time limit to avoid losing by time.
-            if time > move_time_safety_margin {
-                self.search.soft_move_time = Some(Duration::from_millis(soft_move_time));
-                // Set hard time limit to be 150% of the soft time limit.
-                self.search.hard_move_time = Some(Duration::from_millis(15 * soft_move_time / 10));
-            }
+            let soft_move_time = if time > move_time_safety_margin {
+                time - move_time_safety_margin
+            } else {
+                time
+            };
+
+            self.search.soft_move_time = Some(Duration::from_millis(soft_move_time));
+            // Set hard time limit to be 150% of the soft time limit.
+            self.search.hard_move_time = Some(Duration::from_millis(15 * soft_move_time / 10));
         }
 
         // Go movetime was set, always use the maximum time.
         if let Some(time) = config.move_time {
+            // This should never truncate unless the time is about 1.8e19ms, which would be a bit
+            // more than 570 million years.
+            #[allow(clippy::cast_possible_truncation)]
             let millis = time.as_millis() as u64;
 
             let time = if millis > move_time_safety_margin {
