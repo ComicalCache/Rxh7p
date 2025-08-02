@@ -127,21 +127,11 @@ impl Engine {
             self.search.soft_move_time = Some((time / 20) + (3 * inc / 4));
         }
 
-        // Go movetime was set.
-        if let Some(time) = config.move_time {
-            if let Some(move_time) = self.search.soft_move_time {
-                // If move time is less than previously calculated time, use that.
-                if time < move_time {
-                    self.search.soft_move_time = Some(time);
-                }
-            } else {
-                // No time set yet.
-                self.search.soft_move_time = Some(time);
-            }
-        }
-
         // Set soft move time.
         self.search.hard_move_time = self.search.soft_move_time;
+
+        // Add a safety margin to not lose by time.
+        let move_time_safety_margin = 10;
 
         if let Some(time) = self.search.hard_move_time {
             let (num, denom) = MOVE_TIME_FACTORS[evaluator::game_phase(&self.board) as usize];
@@ -149,15 +139,28 @@ impl Engine {
             // Scale time by game phase.
             #[allow(clippy::cast_possible_truncation)]
             let time = (num * time.as_millis() as u64) / denom;
-            let safety_margin = 10;
-            let soft_move_time = time - safety_margin;
+            let soft_move_time = time - move_time_safety_margin;
 
             // Subtract a safety margin from the soft time limit to avoid losing by time.
-            if time > safety_margin {
+            if time > move_time_safety_margin {
                 self.search.soft_move_time = Some(Duration::from_millis(soft_move_time));
                 // Set hard time limit to be 150% of the soft time limit.
                 self.search.hard_move_time = Some(Duration::from_millis(15 * soft_move_time / 10));
             }
+        }
+
+        // Go movetime was set, always use the maximum time.
+        if let Some(time) = config.move_time {
+            let millis = time.as_millis() as u64;
+
+            let time = if millis > move_time_safety_margin {
+                Duration::from_millis(millis - move_time_safety_margin)
+            } else {
+                time
+            };
+
+            self.search.soft_move_time = Some(time);
+            self.search.hard_move_time = Some(time);
         }
     }
 }
