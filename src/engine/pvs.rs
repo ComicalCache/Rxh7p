@@ -170,7 +170,8 @@ impl Engine {
         reduction: Option<usize>,
     ) -> Option<i64> {
         // Apply reduction to depth. Clamp it to never add depth or cause an underflow.
-        let depth = depth - reduction.unwrap_or(0).clamp(0, depth - 1);
+        // depth.max(1) to avoid underflow when depth is already zero.
+        let depth = depth - reduction.unwrap_or(0).clamp(0, depth.max(1) - 1);
 
         if self.stop_search() {
             return None;
