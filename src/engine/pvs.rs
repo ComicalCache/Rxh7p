@@ -58,8 +58,7 @@ impl Engine {
                 break;
             }
 
-            // i64::MIN + 1 to avoid overflow when negating the value.
-            let new_eval = self.pvs(self.board, moves.as_ref(), i64::MIN + 1, i64::MAX, depth);
+            let new_eval = self.pvs(self.board, moves.as_ref(), -i64::MAX, i64::MAX, depth, None);
 
             // If the search was not interrupted.
             if let Some(new_eval) = new_eval {
@@ -168,7 +167,11 @@ impl Engine {
         mut alpha: i64,
         beta: i64,
         depth: usize,
+        reduction: Option<usize>,
     ) -> Option<i64> {
+        // Apply reduction to depth. Clamp it to never add depth or cause an underflow.
+        let depth = depth - reduction.unwrap_or(0).clamp(0, depth - 1);
+
         if self.stop_search() {
             return None;
         }
@@ -181,7 +184,7 @@ impl Engine {
             return Some(0);
         }
 
-        // Quiescence search to avoid event horizon.
+        // Quiescence search to avoid event horizon at the end of search.
         if depth == 0 {
             return Some(Engine::quiescence(board, alpha, beta));
         }
@@ -217,7 +220,7 @@ impl Engine {
         };
 
         let mut first_search = true;
-        let mut max_eval = i64::MIN + 1;
+        let mut max_eval = -i64::MAX;
         let mut best_move = None;
         for (idx, mv) in moves.iter().enumerate() {
             let new_board = board.make_move_new(*mv);
@@ -230,15 +233,20 @@ impl Engine {
 
             let mut new_eval;
             if first_search {
-                // Evaluate new position fully if first search. LMR will always be zero here.
-                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
+                // Evaluate new position fully if first search. LMR will always be zero here thus
+                // it's ommitted.
+                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1, reduction);
                 first_search = false;
             } else {
-                // Clamp late move reduction to never add depth or cause an underflow.
-                let lmr = self.lmr(idx).clamp(0, depth - 1);
+                let lmr = match reduction {
+                    // Use passed reduction if exists.
+                    Some(_) => reduction,
+                    // Calculate new reduction. This only happens to late moves.
+                    None => self.lmr(idx),
+                };
 
                 // Perform null-window search on following searches with late move reduction.
-                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
+                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1, lmr);
 
                 // If the null-window search failed high, repeat with a full search without late
                 // move reduction.
@@ -253,7 +261,7 @@ impl Engine {
                         self.search_log.research_pvs += 1;
                     }
 
-                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1, None);
                 }
             }
 
@@ -315,16 +323,15 @@ impl Engine {
         max_eval
     }
 
-    /// Calculates the late move depth reduction.
-    fn lmr(&self, move_number: usize) -> usize {
-        // Don't reduce moves under 3 search plies.
-        // Don't reduce the first five (ordered) moves.
+    /// Calculates the late move depth reduction. Returns the (lmr, was set this call).
+    fn lmr(&mut self, move_number: usize) -> Option<usize> {
+        // Don't reduce moves under three search plies.
+        // Don't reduce the first three (ordered) moves.
         if self.search.ply < 3 || move_number < 3 {
-            return 0;
+            return None;
         }
 
-        (0.99 + (self.search.ply as f32).ln() * (move_number as f32).ln() / 3.14)
-            .floor()
-            .max(0.) as usize
+        let reduction = 0.99 + (self.search.ply as f32).ln() * (move_number as f32).ln() / 3.14;
+        Some(reduction.floor().max(0.) as usize)
     }
 }
