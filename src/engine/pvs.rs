@@ -3,7 +3,7 @@ use std::io::Write;
 
 use std::{cmp::max, time::SystemTime};
 
-use chess::{Board, BoardStatus, ChessMove, Piece};
+use chess::{BitBoard, Board, BoardStatus, ChessMove, EMPTY, Piece};
 
 #[cfg(feature = "logging")]
 use crate::engine::search::MoveTimeLimitKind;
@@ -11,7 +11,7 @@ use crate::engine::search::MoveTimeLimitKind;
 use crate::{
     engine::Engine,
     evaluator::{self, piece_value},
-    orderer,
+    orderer::{self, masks},
     tt::TtEntryFlag,
     uci::{UciSearchStop, sender},
 };
@@ -58,7 +58,7 @@ impl Engine {
                 break;
             }
 
-            let new_eval = self.pvs(self.board, moves.as_ref(), -i64::MAX, i64::MAX, depth, None);
+            let new_eval = self.pvs(self.board, moves.as_ref(), -i64::MAX, i64::MAX, depth);
 
             // If the search was not interrupted.
             if let Some(new_eval) = new_eval {
@@ -167,12 +167,7 @@ impl Engine {
         mut alpha: i64,
         beta: i64,
         depth: usize,
-        reduction: Option<usize>,
     ) -> Option<i64> {
-        // Apply reduction to depth. Clamp it to never add depth or cause an underflow.
-        // depth.max(1) to avoid underflow when depth is already zero.
-        let depth = depth - reduction.unwrap_or(0).clamp(0, depth.max(1) - 1);
-
         if self.stop_search() {
             return None;
         }
@@ -220,6 +215,8 @@ impl Engine {
             &orderer::all(&board, depth, &self.tt)
         };
 
+        let capture_mask = masks::captures_mask(&board);
+
         let mut first_search = true;
         let mut max_eval = -i64::MAX;
         let mut best_move = None;
@@ -236,18 +233,20 @@ impl Engine {
             if first_search {
                 // Evaluate new position fully if first search. LMR will always be zero here thus
                 // it's ommitted.
-                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1, reduction);
+                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 first_search = false;
             } else {
-                let lmr = match reduction {
-                    // Use passed reduction if exists.
-                    Some(_) => reduction,
-                    // Calculate new reduction. This only happens to late moves.
-                    None => self.lmr(idx),
-                };
+                // Calculate new reduction.
+                let lmr = Engine::lmr(
+                    &board,
+                    depth,
+                    idx,
+                    capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY,
+                )
+                .min(depth - 1);
 
                 // Perform null-window search on following searches with late move reduction.
-                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1, lmr);
+                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
 
                 // If the null-window search failed high, repeat with a full search without late
                 // move reduction.
@@ -262,7 +261,7 @@ impl Engine {
                         self.search_log.research_pvs += 1;
                     }
 
-                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1, None);
+                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 }
             }
 
@@ -325,14 +324,16 @@ impl Engine {
     }
 
     /// Calculates the late move depth reduction. Returns the (lmr, was set this call).
-    fn lmr(&mut self, move_number: usize) -> Option<usize> {
-        // Don't reduce moves under three search plies.
-        // Don't reduce the first three (ordered) moves.
-        if self.search.ply < 3 || move_number < 3 {
-            return None;
+    fn lmr(board: &Board, depth: usize, move_number: usize, caputre: bool) -> usize {
+        // Don't reduce moves in high depth.
+        // Don't reduce the first few (ordered) moves.
+        // Don't reduce if in check.
+        // Don't reduce captures.
+        if depth < 3 || move_number < 3 || *board.checkers() != EMPTY || caputre {
+            return 0;
         }
 
-        let reduction = 0.99 + (self.search.ply as f32).ln() * (move_number as f32).ln() / 3.14;
-        Some(reduction.floor().max(0.) as usize)
+        let reduction = (depth as f32).ln() * ((move_number + 1) as f32).ln() / 2.5;
+        reduction.floor() as usize
     }
 }
