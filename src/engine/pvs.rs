@@ -215,13 +215,29 @@ impl Engine {
             &orderer::all(&board, depth, &self.tt)
         };
 
+        // Piece value will never be big enough.
+        #[allow(clippy::cast_possible_wrap)]
+        let futility_margin =
+            piece_value(&board, Piece::Pawn) + piece_value(&board, Piece::Pawn) * depth as i64;
         let capture_mask = masks::captures_mask(&board);
+        let current_eval = evaluator::evaluate(&board);
 
         let mut first_search = true;
         let mut max_eval = -i64::MAX;
         let mut best_move = None;
         for (idx, mv) in moves.iter().enumerate() {
             let new_board = board.make_move_new(*mv);
+
+            // Futility pruning on quiet positions.
+            if depth == 1 || depth == 2 {
+                let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
+                let check = *new_board.checkers() != EMPTY;
+                if !capture && !check && mv.get_promotion().is_none() {
+                    if current_eval + futility_margin < alpha {
+                        continue;
+                    }
+                }
+            }
 
             // Add new position to and increment search ply.
             let irreversible = Engine::move_is_irreversible(&board, &new_board, *mv);
@@ -236,14 +252,10 @@ impl Engine {
                 new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 first_search = false;
             } else {
+                let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
+                let promotion = mv.get_promotion().is_some();
                 // Calculate new reduction.
-                let lmr = Engine::lmr(
-                    &board,
-                    depth,
-                    idx,
-                    capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY,
-                )
-                .min(depth - 1);
+                let lmr = Engine::lmr(&board, depth, idx, capture, promotion).min(depth - 1);
 
                 // Perform null-window search on following searches with late move reduction.
                 new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
@@ -324,16 +336,29 @@ impl Engine {
     }
 
     /// Calculates the late move depth reduction. Returns the (lmr, was set this call).
-    fn lmr(board: &Board, depth: usize, move_number: usize, caputre: bool) -> usize {
+    fn lmr(
+        board: &Board,
+        depth: usize,
+        move_number: usize,
+        caputre: bool,
+        promotion: bool,
+    ) -> usize {
         // Don't reduce moves in high depth.
         // Don't reduce the first few (ordered) moves.
         // Don't reduce if in check.
         // Don't reduce captures.
-        if depth < 3 || move_number < 3 || *board.checkers() != EMPTY || caputre {
+        // Don't reduce promotions.
+        if depth < 3 || move_number < 3 || *board.checkers() != EMPTY || caputre || promotion {
             return 0;
         }
 
-        let reduction = (depth as f32).ln() * ((move_number + 1) as f32).ln() / 2.5;
-        reduction.floor() as usize
+        // None of these are of concern.
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss
+        )]
+        let reduction = ((depth as f32).ln() * ((move_number + 1) as f32).ln() / 2.5) as usize;
+        reduction
     }
 }
