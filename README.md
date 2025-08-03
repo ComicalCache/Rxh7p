@@ -85,6 +85,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://en.wikipedia.org/wiki/Principal_variation_search
 - https://www.chessprogramming.org/Branching_Factor#EffectiveBranchingFactor
 - https://www.chessprogramming.org/Late_Move_Reductions
+- https://www.chessprogramming.org/Futility_Pruning
 
 </details>
 
@@ -157,7 +158,6 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/CLOP
 - https://www.chessprogramming.org/Lazy_SMP
 - https://www.chessprogramming.org/Delta_Pruning
-- https://www.chessprogramming.org/Futility_Pruning
 - https://www.chessprogramming.org/Backward_Pawn
   - Further reading https://www.stmintz.com/ccc/index.php?id=56328
 - https://www.chessprogramming.org/Candidate_Passed_Pawn

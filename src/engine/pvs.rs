@@ -232,10 +232,12 @@ impl Engine {
             if depth == 1 || depth == 2 {
                 let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
                 let check = *new_board.checkers() != EMPTY;
-                if !capture && !check && mv.get_promotion().is_none() {
-                    if current_eval + futility_margin < alpha {
-                        continue;
-                    }
+                if !capture
+                    && !check
+                    && mv.get_promotion().is_none()
+                    && current_eval + futility_margin < alpha
+                {
+                    continue;
                 }
             }
 
@@ -302,8 +304,9 @@ impl Engine {
             }
         }
 
-        let best_move = best_move.expect("PVS failed to find next move");
-        self.store_pvs_result(board, prev_alpha, beta, depth, best_move, max_eval);
+        if let Some(mv) = best_move {
+            self.store_pvs_result(board, prev_alpha, beta, depth, mv, max_eval);
+        }
 
         Some(max_eval)
     }
