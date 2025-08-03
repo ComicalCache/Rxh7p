@@ -12,6 +12,15 @@ Benchmarking can be done using fastchess. The kasparov game book contains >3000 
 fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new cmd=new -engine name=old cmd=old -each tc=30+0.5 restart=on
 ```
 
+### Benchmarking with Stockfish
+
+Replace `<ELO>` with an Elo between 1350 and 3500 to gauge Rxh7+'s elo rating aganist stockfish.
+
+```sh
+fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=Rxh7+ cmd=Rxh7p -engine name=Stockfish cmd=stockfish option.UCI_LimitStrength=true option.UCI_Elo=<ELO>
+ -each tc=30+0.5 restart=on
+```
+
 # Bibliography
 
 Pieces of knowledge interesting to anyone reading, myself included.
@@ -74,6 +83,8 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Principal_Variation_Search
 - https://www.chessprogramming.org/Null_Window
 - https://en.wikipedia.org/wiki/Principal_variation_search
+- https://www.chessprogramming.org/Branching_Factor#EffectiveBranchingFactor
+- https://www.chessprogramming.org/Late_Move_Reductions
 
 </details>
 
@@ -140,7 +151,6 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Lazy_Evaluation
 - https://zwischenzug.substack.com/p/centipawns-suck
 - https://www.chessprogramming.org/History_Leaf_Pruning
-- https://www.chessprogramming.org/Late_Move_Reductions
 - https://www.chessprogramming.org/History_Heuristic
 - https://www.chessprogramming.org/Null_Move_Pruning
 - Implement endgame tablebases

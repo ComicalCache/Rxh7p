@@ -2,6 +2,7 @@
 mod engine;
 pub use engine::Engine;
 
+mod pvs;
 mod repetition;
 mod time_control;
 mod uci;
