@@ -318,8 +318,8 @@ impl Engine {
     /// Calculates the late move depth reduction.
     fn lmr(&self, move_number: usize) -> usize {
         // Don't reduce moves under 3 search plies.
-        // Don't reduce the first three (ordered) moves.
-        if self.search.ply < 3 || move_number < 3 {
+        // Don't reduce the first five (ordered) moves.
+        if self.search.ply < 3 || move_number < 5 {
             return 0;
         }
 
