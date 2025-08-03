@@ -46,6 +46,9 @@ pub struct SearchLog {
     /// The game phase of the position.
     pub game_phase: u32,
 
+    /// Amount of PVS researches because it fell in the window.
+    pub research_pvs: usize,
+
     /// Evaluation of the search.
     pub eval: i64,
     /// Search depth.
@@ -54,7 +57,7 @@ pub struct SearchLog {
 
 impl SearchLog {
     pub fn search_stats_header() -> &'static str {
-        "[SEARCH STATS] ply,game phase,depth,skipped next iteration,pre volatility eval,eval,soft move time,hard move time,time limit kind"
+        "[SEARCH STATS] ply,game phase,depth,skipped next iteration,eval,soft move time,hard move time,time limit kind,researching pvs"
     }
 }
 
@@ -62,7 +65,7 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?}",
+            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?},{}",
             self.ply,
             self.game_phase,
             self.depth,
@@ -70,7 +73,8 @@ impl Display for SearchLog {
             self.eval,
             self.soft_move_time.map(|duration| duration.as_millis()),
             self.hard_move_time.map(|duration| duration.as_millis()),
-            self.time_limit_kind
+            self.time_limit_kind,
+            self.research_pvs,
         )
     }
 }

@@ -248,6 +248,11 @@ impl Engine {
                     && -eval > alpha
                     && -eval < beta
                 {
+                    #[cfg(feature = "logging")]
+                    {
+                        self.search_log.research_pvs += 1;
+                    }
+
                     new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 }
             }
