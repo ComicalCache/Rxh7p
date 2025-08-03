@@ -319,7 +319,7 @@ impl Engine {
     fn lmr(&self, move_number: usize) -> usize {
         // Don't reduce moves under 3 search plies.
         // Don't reduce the first five (ordered) moves.
-        if self.search.ply < 3 || move_number < 5 {
+        if self.search.ply < 3 || move_number < 3 {
             return 0;
         }
 
