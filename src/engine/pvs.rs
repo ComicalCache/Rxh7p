@@ -208,6 +208,27 @@ impl Engine {
             }
         }
 
+        // Null move pruning if not in check or in pawn end game.
+        if depth >= 3
+            && !evaluator::pawn_end_game(&board)
+            // Checks that not in check.
+            && let Some(new_board) = board.null_move()
+        {
+            // Reduce depth by three in null move search and beta null window.
+            if let Some(eval) = self.pvs(new_board, searchmoves, -beta, -beta + 1, depth - 3) {
+                // Invert result due to symmetry.
+                let eval = -eval;
+
+                // Since null move failed high, best move will likely also fail high, prune.
+                if eval >= beta {
+                    return Some(eval);
+                }
+            } else {
+                // If PVS returns None, search was cancelled, return up the chain.
+                return None;
+            }
+        }
+
         // Use moves given by UCI or search all available (ordered) moves.
         let moves = if let Some(searchmoves) = searchmoves {
             searchmoves
