@@ -221,6 +221,11 @@ impl Engine {
 
                 // Since null move failed high, best move will likely also fail high, prune.
                 if eval >= beta {
+                    #[cfg(feature = "logging")]
+                    {
+                        self.search_log.null_move_pruning += 1;
+                    }
+
                     return Some(eval);
                 }
             } else {
@@ -237,7 +242,7 @@ impl Engine {
         };
 
         let capture_mask = masks::captures_mask(&board);
-        let futility_margin = if depth == 1 || depth == 2 {
+        let futility_margin = if depth < 3 {
             // Piece value will never be big enough.
             #[allow(clippy::cast_possible_wrap)]
             let margin =
@@ -255,19 +260,25 @@ impl Engine {
         for (idx, mv) in moves.iter().enumerate() {
             let new_board = board.make_move_new(*mv);
 
-            // Futility pruning on quiet positions (not capture, check, promotion or almost mate).
-            if (depth == 1 || depth == 2) && futility_margin < alpha {
-                let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
-                let check = *board.checkers() != EMPTY || *new_board.checkers() != EMPTY;
-                let promotion = mv.get_promotion().is_some();
-                if !capture && !check && !promotion {
-                    #[cfg(feature = "logging")]
-                    {
-                        self.search_log.futility_pruning += 1;
-                    }
+            let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
+            let promotion = mv.get_promotion().is_some();
+            let in_check = *board.checkers() != EMPTY;
+            let opponent_in_check = *new_board.checkers() != EMPTY;
 
-                    continue;
+            // Futility pruning on quiet positions (not capture, check or promotion).
+            if depth < 3
+                && futility_margin < alpha
+                && !capture
+                && !in_check
+                && !opponent_in_check
+                && !promotion
+            {
+                #[cfg(feature = "logging")]
+                {
+                    self.search_log.futility_pruning += 1;
                 }
+
+                continue;
             }
 
             // Add new position to and increment search ply.
@@ -283,10 +294,8 @@ impl Engine {
                 new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 first_search = false;
             } else {
-                let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
-                let promotion = mv.get_promotion().is_some();
                 // Calculate new reduction.
-                let lmr = Engine::lmr(&board, depth, idx, capture, promotion).min(depth - 1);
+                let lmr = Engine::lmr(depth, idx, capture, promotion, in_check).min(depth - 1);
 
                 // Perform null-window search on following searches with late move reduction.
                 new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
@@ -368,19 +377,13 @@ impl Engine {
     }
 
     /// Calculates the late move depth reduction. Returns the (lmr, was set this call).
-    fn lmr(
-        board: &Board,
-        depth: usize,
-        move_number: usize,
-        caputre: bool,
-        promotion: bool,
-    ) -> usize {
+    fn lmr(depth: usize, move_number: usize, capture: bool, promotion: bool, check: bool) -> usize {
         // Don't reduce moves in high depth.
         // Don't reduce the first few (ordered) moves.
         // Don't reduce if in check.
         // Don't reduce captures.
         // Don't reduce promotions.
-        if depth < 3 || move_number < 3 || *board.checkers() != EMPTY || caputre || promotion {
+        if depth < 3 || move_number < 3 || check || capture || promotion {
             return 0;
         }
 

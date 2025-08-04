@@ -15,6 +15,7 @@ impl Engine {
             game_phase: evaluator::game_phase(&self.board),
             research_pvs: 0,
             futility_pruning: 0,
+            null_move_pruning: 0,
             eval: 0,
             depth: 0,
         };
