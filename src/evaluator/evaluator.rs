@@ -5,6 +5,8 @@ use crate::evaluator::{
     piece_values::{END_GAME_PIECE_VALUES, MID_GAME_PIECE_VALUES},
 };
 
+pub const MATE_VALUE: i64 = -10_000_000;
+
 /// Returns the value that a type of piece adds to the game phase calculation.
 fn game_phase_value(piece: Piece) -> u32 {
     match piece {
@@ -59,7 +61,7 @@ pub fn evaluate(board: &Board) -> i64 {
     // is in checkmate.
     match board.status() {
         BoardStatus::Stalemate => return 0,
-        BoardStatus::Checkmate => return -10_000_000,
+        BoardStatus::Checkmate => return MATE_VALUE,
         BoardStatus::Ongoing => {}
     }
 

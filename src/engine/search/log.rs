@@ -48,6 +48,8 @@ pub struct SearchLog {
 
     /// Amount of PVS researches because it fell in the window.
     pub research_pvs: usize,
+    /// Amount of futility pruning.
+    pub futility_pruning: usize,
 
     /// Evaluation of the search.
     pub eval: i64,
@@ -65,7 +67,7 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?},{}",
+            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?},{},{}",
             self.ply,
             self.game_phase,
             self.depth,
@@ -75,6 +77,7 @@ impl Display for SearchLog {
             self.hard_move_time.map(|duration| duration.as_millis()),
             self.time_limit_kind,
             self.research_pvs,
+            self.futility_pruning,
         )
     }
 }

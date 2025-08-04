@@ -14,6 +14,7 @@ impl Engine {
             ply: self.position_stack.len() - 1,
             game_phase: evaluator::game_phase(&self.board),
             research_pvs: 0,
+            futility_pruning: 0,
             eval: 0,
             depth: 0,
         };
