@@ -215,12 +215,17 @@ impl Engine {
             &orderer::all(&board, depth, &self.tt)
         };
 
-        // Piece value will never be big enough.
-        #[allow(clippy::cast_possible_wrap)]
-        let futility_margin =
-            piece_value(&board, Piece::Pawn) + piece_value(&board, Piece::Pawn) * depth as i64;
         let capture_mask = masks::captures_mask(&board);
-        let current_eval = evaluator::evaluate(&board);
+        let (margin, curr_eval) = if depth == 1 || depth == 2 {
+            // Piece value will never be big enough.
+            #[allow(clippy::cast_possible_wrap)]
+            let margin =
+                piece_value(&board, Piece::Pawn) + piece_value(&board, Piece::Pawn) * depth as i64;
+
+            (margin, evaluator::evaluate(&board))
+        } else {
+            (0, 0)
+        };
 
         let mut first_search = true;
         let mut max_eval = -i64::MAX;
@@ -232,13 +237,9 @@ impl Engine {
             if depth == 1 || depth == 2 {
                 let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
                 let check = *board.checkers() != EMPTY || *new_board.checkers() != EMPTY;
-                let almost_mate = alpha > 95 * MATE_VALUE / 100 || beta > 95 * MATE_VALUE / 100;
-                if !capture
-                    && !check
-                    && mv.get_promotion().is_none()
-                    && !almost_mate
-                    && current_eval + futility_margin < alpha
-                {
+                let promotion = mv.get_promotion().is_some();
+                let almost_mate = alpha > 9 * MATE_VALUE / 10 || beta > 9 * MATE_VALUE / 10;
+                if !capture && !check && !promotion && !almost_mate && curr_eval + margin < alpha {
                     #[cfg(feature = "logging")]
                     {
                         self.search_log.futility_pruning += 1;
@@ -269,11 +270,10 @@ impl Engine {
                 // Perform null-window search on following searches with late move reduction.
                 new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
 
-                // If the null-window search failed high, repeat with a full search without late
-                // move reduction.
+                // If the null-window search failed high.
                 if let Some(eval) = new_eval
-                // Prune non-PV moves. In rare cases this condition is true for PV moves, but the
-                // chance is negligible. Inverse result due to symmetry.
+                    // Prune non-PV moves. In rare cases this condition is true for PV moves, but
+                    // the chance is negligible. Inverse result due to symmetry.
                     && -eval > alpha
                     && -eval < beta
                 {
@@ -282,6 +282,7 @@ impl Engine {
                         self.search_log.research_pvs += 1;
                     }
 
+                    // Repeat the search with a full search without late move reduction.
                     new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
                 }
             }
