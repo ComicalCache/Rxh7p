@@ -216,15 +216,16 @@ impl Engine {
         };
 
         let capture_mask = masks::captures_mask(&board);
-        let (margin, curr_eval) = if depth == 1 || depth == 2 {
+        let futility_margin = if depth == 1 || depth == 2 {
             // Piece value will never be big enough.
             #[allow(clippy::cast_possible_wrap)]
             let margin =
                 piece_value(&board, Piece::Pawn) + piece_value(&board, Piece::Pawn) * depth as i64;
 
-            (margin, evaluator::evaluate(&board))
+            evaluator::evaluate(&board) + margin
         } else {
-            (0, 0)
+            // Could be anything but this guarantees alpha < alpha to always be false.
+            alpha
         };
 
         let mut first_search = true;
@@ -234,12 +235,12 @@ impl Engine {
             let new_board = board.make_move_new(*mv);
 
             // Futility pruning on quiet positions (not capture, check, promotion or almost mate).
-            if depth == 1 || depth == 2 {
+            if (depth == 1 || depth == 2) && futility_margin < alpha {
                 let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
                 let check = *board.checkers() != EMPTY || *new_board.checkers() != EMPTY;
                 let promotion = mv.get_promotion().is_some();
                 let almost_mate = alpha > 9 * MATE_VALUE / 10 || beta > 9 * MATE_VALUE / 10;
-                if !capture && !check && !promotion && !almost_mate && curr_eval + margin < alpha {
+                if !capture && !check && !promotion && !almost_mate {
                     #[cfg(feature = "logging")]
                     {
                         self.search_log.futility_pruning += 1;
