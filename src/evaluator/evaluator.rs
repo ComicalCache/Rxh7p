@@ -5,7 +5,7 @@ use crate::evaluator::{
     piece_values::{END_GAME_PIECE_VALUES, MID_GAME_PIECE_VALUES},
 };
 
-pub const MATE_VALUE: i64 = -10_000_000;
+const MATE_VALUE: i64 = -10_000_000;
 
 /// Returns the value that a type of piece adds to the game phase calculation.
 fn game_phase_value(piece: Piece) -> u32 {

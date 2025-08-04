@@ -10,7 +10,7 @@ use crate::engine::search::MoveTimeLimitKind;
 
 use crate::{
     engine::Engine,
-    evaluator::{self, MATE_VALUE, piece_value},
+    evaluator::{self, piece_value},
     orderer::{self, masks},
     tt::TtEntryFlag,
     uci::{UciSearchStop, sender},
@@ -239,8 +239,7 @@ impl Engine {
                 let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
                 let check = *board.checkers() != EMPTY || *new_board.checkers() != EMPTY;
                 let promotion = mv.get_promotion().is_some();
-                let almost_mate = alpha > 9 * MATE_VALUE / 10 || beta > 9 * MATE_VALUE / 10;
-                if !capture && !check && !promotion && !almost_mate {
+                if !capture && !check && !promotion {
                     #[cfg(feature = "logging")]
                     {
                         self.search_log.futility_pruning += 1;
