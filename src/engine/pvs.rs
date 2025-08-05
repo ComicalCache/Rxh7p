@@ -358,6 +358,11 @@ impl Engine {
             return max_eval;
         }
 
+        // Delta pruning for hopeless positions.
+        if max_eval + evaluator::piece_value(&board, Piece::Queen) < alpha {
+            return alpha;
+        }
+
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
