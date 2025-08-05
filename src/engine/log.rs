@@ -16,6 +16,7 @@ impl Engine {
             research_pvs: 0,
             futility_pruning: 0,
             null_move_pruning: 0,
+            iterative_deepening: 0,
             eval: 0,
             depth: 0,
         };

@@ -52,6 +52,8 @@ pub struct SearchLog {
     pub futility_pruning: usize,
     /// Amount of null move pruning.
     pub null_move_pruning: usize,
+    /// Amount of times iterative deepening was done.
+    pub iterative_deepening: usize,
 
     /// Evaluation of the search.
     pub eval: i64,
@@ -61,7 +63,7 @@ pub struct SearchLog {
 
 impl SearchLog {
     pub fn search_stats_header() -> &'static str {
-        "[SEARCH STATS] ply,game phase,depth,skipped next iteration,eval,soft move time,hard move time,time limit kind,researching pvs,futility pruned,null move pruned"
+        "[SEARCH STATS] ply,game phase,depth,skipped next iteration,eval,soft move time,hard move time,time limit kind,researching pvs,futility pruned,null move pruned,iterative deepening"
     }
 }
 
@@ -69,7 +71,7 @@ impl Display for SearchLog {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?},{},{},{}",
+            "[SEARCH STATS] {},{},{},{},{},{:?},{:?},{:?},{},{},{},{}",
             self.ply,
             self.game_phase,
             self.depth,
@@ -81,6 +83,7 @@ impl Display for SearchLog {
             self.research_pvs,
             self.futility_pruning,
             self.null_move_pruning,
+            self.iterative_deepening
         )
     }
 }

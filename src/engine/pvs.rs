@@ -210,6 +210,11 @@ impl Engine {
 
         // Internal iterative deepening if no good move exists yet.
         if PV && depth > 5 && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact) {
+            #[cfg(feature = "logging")]
+            {
+                self.search_log.iterative_deepening += 1;
+            }
+
             // If PVS returns None, search was cancelled, return up the chain.
             self.pvs::<false>(board, searchmoves, alpha, beta, depth - 2)?;
         }
@@ -270,17 +275,10 @@ impl Engine {
             let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
             let promotion = mv.get_promotion().is_some();
             let in_check = *board.checkers() != EMPTY;
-            let opponent_in_check = *new_board.checkers() != EMPTY;
+            let check = in_check || *new_board.checkers() != EMPTY;
 
             // Futility pruning on quiet positions (not capture, check or promotion).
-            if !PV
-                && depth < 3
-                && futility_margin < alpha
-                && !capture
-                && !in_check
-                && !opponent_in_check
-                && !promotion
-            {
+            if !PV && depth < 3 && futility_margin < alpha && !capture && !check && !promotion {
                 #[cfg(feature = "logging")]
                 {
                     self.search_log.futility_pruning += 1;
@@ -289,7 +287,7 @@ impl Engine {
                 continue;
             }
 
-            // Add new position to and increment search ply.
+            // Add new position to the stack and increment search ply.
             let irreversible = Engine::move_is_irreversible(&board, &new_board, *mv);
             self.position_stack
                 .push((new_board.get_hash(), irreversible));
