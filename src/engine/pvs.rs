@@ -58,7 +58,7 @@ impl Engine {
                 break;
             }
 
-            let new_eval = self.pvs(self.board, moves.as_ref(), -i64::MAX, i64::MAX, depth);
+            let new_eval = self.pvs::<true>(self.board, moves.as_ref(), -i64::MAX, i64::MAX, depth);
 
             // If the search was not interrupted.
             if let Some(new_eval) = new_eval {
@@ -160,7 +160,7 @@ impl Engine {
     }
 
     /// Performs a PVS search on a given board.
-    fn pvs(
+    fn pvs<const PV: bool>(
         &mut self,
         board: Board,
         searchmoves: Option<&Vec<ChessMove>>,
@@ -193,29 +193,29 @@ impl Engine {
         let prev_alpha = alpha;
 
         // Skip lookup if position occured twice already to search a threefold repetition position.
-        if self.reversible_repetitions() <= 1 {
-            // If viable entry exists return evaluation.
-            if let Some(entry) = self.tt.get(board.get_hash())
-                && entry.depth as usize >= depth
-            {
-                let eval = entry.value(board.side_to_move());
-                match entry.flag {
-                    TtEntryFlag::Exact => return Some(eval),
-                    TtEntryFlag::Beta if eval >= beta => return Some(eval),
-                    TtEntryFlag::Alpha if eval <= alpha => return Some(eval),
-                    _ => {}
-                }
+        // If viable entry exists return evaluation.
+        if self.reversible_repetitions() <= 1
+            && let Some(entry) = self.tt.get(board.get_hash())
+            && entry.depth as usize >= depth
+        {
+            let eval = entry.value(board.side_to_move());
+            match entry.flag {
+                TtEntryFlag::Exact => return Some(eval),
+                TtEntryFlag::Beta if eval >= beta => return Some(eval),
+                TtEntryFlag::Alpha if eval <= alpha => return Some(eval),
+                _ => {}
             }
         }
 
         // Null move pruning if not in check or in pawn end game.
-        if depth >= 3
-            && !evaluator::pawn_end_game(&board)
+        if !PV && depth >= 3 && !evaluator::pawn_end_game(&board)
             // Checks that not in check.
             && let Some(new_board) = board.null_move()
         {
             // Reduce depth by three in null move search and beta null window.
-            if let Some(eval) = self.pvs(new_board, searchmoves, -beta, -beta + 1, depth - 3) {
+            if let Some(eval) =
+                self.pvs::<false>(new_board, searchmoves, -beta, -beta + 1, depth - 3)
+            {
                 // Invert result due to symmetry.
                 let eval = -eval;
 
@@ -266,7 +266,8 @@ impl Engine {
             let opponent_in_check = *new_board.checkers() != EMPTY;
 
             // Futility pruning on quiet positions (not capture, check or promotion).
-            if depth < 3
+            if !PV
+                && depth < 3
                 && futility_margin < alpha
                 && !capture
                 && !in_check
@@ -291,14 +292,14 @@ impl Engine {
             if first_search {
                 // Evaluate new position fully if first search. LMR will always be zero here thus
                 // it's ommitted.
-                new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
+                new_eval = self.pvs::<PV>(new_board, None, -beta, -alpha, depth - 1);
                 first_search = false;
             } else {
                 // Calculate new reduction.
                 let lmr = Engine::lmr(depth, idx, capture, promotion, in_check).min(depth - 1);
 
                 // Perform null-window search on following searches with late move reduction.
-                new_eval = self.pvs(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
+                new_eval = self.pvs::<false>(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
 
                 // If the null-window search failed high.
                 if let Some(eval) = new_eval
@@ -313,7 +314,7 @@ impl Engine {
                     }
 
                     // Repeat the search with a full search without late move reduction.
-                    new_eval = self.pvs(new_board, None, -beta, -alpha, depth - 1);
+                    new_eval = self.pvs::<true>(new_board, None, -beta, -alpha, depth - 1);
                 }
             }
 

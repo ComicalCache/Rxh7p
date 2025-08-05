@@ -86,6 +86,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Branching_Factor#EffectiveBranchingFactor
 - https://www.chessprogramming.org/Late_Move_Reductions
 - https://www.chessprogramming.org/Futility_Pruning
+- https://www.chessprogramming.org/Delta_Pruning
 
 </details>
 
@@ -142,6 +143,8 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 <details>
 
+- https://www.chessprogramming.org/Internal_Iterative_Deepening
+- https://www.chessprogramming.org/Internal_Iterative_Reductions
 - https://www.chessprogramming.org/Sequential_Probability_Ratio_Test
 - https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Triangular_PV-Table
@@ -157,7 +160,6 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - Implement endgame tablebases
 - https://www.chessprogramming.org/CLOP
 - https://www.chessprogramming.org/Lazy_SMP
-- https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Backward_Pawn
   - Further reading https://www.stmintz.com/ccc/index.php?id=56328
 - https://www.chessprogramming.org/Candidate_Passed_Pawn
