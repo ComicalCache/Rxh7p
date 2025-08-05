@@ -192,10 +192,11 @@ impl Engine {
 
         let prev_alpha = alpha;
 
+        let tt_entry = self.tt.get(board.get_hash());
         // Skip lookup if position occured twice already to search a threefold repetition position.
         // If viable entry exists return evaluation.
         if self.reversible_repetitions() <= 1
-            && let Some(entry) = self.tt.get(board.get_hash())
+            && let Some(entry) = tt_entry
             && entry.depth as usize >= depth
         {
             let eval = entry.value(board.side_to_move());
@@ -204,6 +205,14 @@ impl Engine {
                 TtEntryFlag::Beta if eval >= beta => return Some(eval),
                 TtEntryFlag::Alpha if eval <= alpha => return Some(eval),
                 _ => {}
+            }
+        }
+
+        // Internal iterative deepening if no good move exists yet.
+        if PV && depth > 5 && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact) {
+            if let None = self.pvs::<false>(board, searchmoves, alpha, beta, depth - 2) {
+                // If PVS returns None, search was cancelled, return up the chain.
+                return None;
             }
         }
 
