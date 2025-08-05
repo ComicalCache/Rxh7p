@@ -210,13 +210,12 @@ impl Engine {
 
         // Internal iterative reductions if no good move exists yet.
         if PV && depth > 5 && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact) {
-            /*
+            // Also apply internal iterative reductions.
+            depth -= 1;
             if let None = self.pvs::<false>(board, searchmoves, alpha, beta, depth - 2) {
                 // If PVS returns None, search was cancelled, return up the chain.
                 return None;
             }
-            */
-            depth -= 1;
         }
 
         // Null move pruning if not in check or in pawn end game.
