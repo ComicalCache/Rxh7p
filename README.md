@@ -89,7 +89,6 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Futility_Pruning
 - https://www.chessprogramming.org/Delta_Pruning
 - https://www.chessprogramming.org/Internal_Iterative_Deepening
-- https://www.chessprogramming.org/Internal_Iterative_Reductions
 
 </details>
 
@@ -147,6 +146,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 <details>
 
+- https://www.chessprogramming.org/Internal_Iterative_Reductions
 - https://www.chessprogramming.org/Razoring
 - https://www.chessprogramming.org/Sequential_Probability_Ratio_Test
 - https://www.chessprogramming.org/Triangular_PV-Table
