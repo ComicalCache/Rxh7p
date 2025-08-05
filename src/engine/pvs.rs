@@ -166,7 +166,7 @@ impl Engine {
         searchmoves: Option<&Vec<ChessMove>>,
         mut alpha: i64,
         beta: i64,
-        depth: usize,
+        mut depth: usize,
     ) -> Option<i64> {
         if self.stop_search() {
             return None;
@@ -208,12 +208,15 @@ impl Engine {
             }
         }
 
-        // Internal iterative deepening if no good move exists yet.
+        // Internal iterative reductions if no good move exists yet.
         if PV && depth > 5 && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact) {
+            /*
             if let None = self.pvs::<false>(board, searchmoves, alpha, beta, depth - 2) {
                 // If PVS returns None, search was cancelled, return up the chain.
                 return None;
             }
+            */
+            depth -= 1;
         }
 
         // Null move pruning if not in check or in pawn end game.

@@ -1,6 +1,6 @@
 [package]
 name = "Rxh7p"
-version = "1.2.5-rev17"
+version = "1.2.5-rev18"
 edition = "2024"
 
 [dependencies]
