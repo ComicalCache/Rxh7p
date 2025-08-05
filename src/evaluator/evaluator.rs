@@ -5,6 +5,8 @@ use crate::evaluator::{
     piece_values::{END_GAME_PIECE_VALUES, MID_GAME_PIECE_VALUES},
 };
 
+const MATE_VALUE: i64 = -10_000_000;
+
 /// Returns the value that a type of piece adds to the game phase calculation.
 fn game_phase_value(piece: Piece) -> u32 {
     match piece {
@@ -22,6 +24,7 @@ fn tapered_eval(tween: u32, mid_game_eval: i64, end_game_eval: i64) -> i64 {
     (mid_game_eval * mid_game_phase + end_game_eval * end_game_phase) / 24
 }
 
+/// Returns the phase of the game on a scale [0, 24] with 0 being end game and 24 early game.
 pub fn game_phase(board: &Board) -> u32 {
     // Calculate game phase.
     let mut phase = 0;
@@ -32,6 +35,15 @@ pub fn game_phase(board: &Board) -> u32 {
     }
 
     phase
+}
+
+/// Returns if the side to move is in a pawn end game.
+pub fn pawn_end_game(board: &Board) -> bool {
+    let color = board.side_to_move();
+    let own_pieces = board.color_combined(color);
+    let own_king_and_pawns = (board.pieces(Piece::King) | board.pieces(Piece::Pawn)) & own_pieces;
+
+    own_king_and_pawns == *own_pieces
 }
 
 /// Returns the value of a piece.
@@ -59,7 +71,7 @@ pub fn evaluate(board: &Board) -> i64 {
     // is in checkmate.
     match board.status() {
         BoardStatus::Stalemate => return 0,
-        BoardStatus::Checkmate => return -10_000_000,
+        BoardStatus::Checkmate => return MATE_VALUE,
         BoardStatus::Ongoing => {}
     }
 

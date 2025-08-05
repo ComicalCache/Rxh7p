@@ -12,6 +12,15 @@ Benchmarking can be done using fastchess. The kasparov game book contains >3000 
 fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=new cmd=new -engine name=old cmd=old -each tc=30+0.5 restart=on
 ```
 
+### Benchmarking with Stockfish
+
+Replace `<ELO>` with an Elo between 1350 and 3500 to gauge Rxh7+'s elo rating aganist stockfish.
+
+```sh
+fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=Rxh7+ cmd=Rxh7p -engine name=Stockfish cmd=stockfish option.UCI_LimitStrength=true option.UCI_Elo=<ELO>
+ -each tc=30+0.5 restart=on
+```
+
 # Bibliography
 
 Pieces of knowledge interesting to anyone reading, myself included.
@@ -74,6 +83,12 @@ Pieces of knowledge interesting to anyone reading, myself included.
 - https://www.chessprogramming.org/Principal_Variation_Search
 - https://www.chessprogramming.org/Null_Window
 - https://en.wikipedia.org/wiki/Principal_variation_search
+- https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
+- https://www.chessprogramming.org/Branching_Factor#EffectiveBranchingFactor
+- https://www.chessprogramming.org/Late_Move_Reductions
+- https://www.chessprogramming.org/Futility_Pruning
+- https://www.chessprogramming.org/Delta_Pruning
+- https://www.chessprogramming.org/Internal_Iterative_Deepening
 
 </details>
 
@@ -118,6 +133,7 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 <details>
 
+- https://zwischenzug.substack.com/p/centipawns-suck
 - https://www.chessprogramming.org/Simplified_Evaluation_Function
 - https://www.chessprogramming.org/Piece-Square_Tables
 - https://www.chessprogramming.org/PeSTO's_Evaluation_Function
@@ -130,24 +146,19 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 <details>
 
+- https://www.chessprogramming.org/Internal_Iterative_Reductions
+- https://www.chessprogramming.org/Razoring
 - https://www.chessprogramming.org/Sequential_Probability_Ratio_Test
-- https://web.archive.org/web/20071030220825/http://www.brucemo.com/compchess/programming/pvs.htm
 - https://www.chessprogramming.org/Triangular_PV-Table
-
-- https://www.chessprogramming.org/Material#Balance
 - https://www.chessprogramming.org/CPW-Engine_recognize
 - https://www.chessprogramming.org/Draw_Evaluation
 - https://www.chessprogramming.org/Lazy_Evaluation
-- https://zwischenzug.substack.com/p/centipawns-suck
 - https://www.chessprogramming.org/History_Leaf_Pruning
-- https://www.chessprogramming.org/Late_Move_Reductions
 - https://www.chessprogramming.org/History_Heuristic
 - https://www.chessprogramming.org/Null_Move_Pruning
 - Implement endgame tablebases
 - https://www.chessprogramming.org/CLOP
 - https://www.chessprogramming.org/Lazy_SMP
-- https://www.chessprogramming.org/Delta_Pruning
-- https://www.chessprogramming.org/Futility_Pruning
 - https://www.chessprogramming.org/Backward_Pawn
   - Further reading https://www.stmintz.com/ccc/index.php?id=56328
 - https://www.chessprogramming.org/Candidate_Passed_Pawn

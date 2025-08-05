@@ -1,0 +1,13 @@
+Results of Rxh7+ v1.3.0 vs Rxh7+ v1.1 (30+0.5, NULL, NULL, openings.pgn):
+Elo: 143.57 +/- 6.27, nElo: 246.38 +/- 9.63
+LOS: 100.00 %, DrawRatio: 32.52 %, PairsRatio: 17.54
+Games: 5000, Wins: 2174, Losses: 218, Draws: 2608, Points: 3478.0 (69.56 %)
+Ptnml(0-2): [2, 89, 813, 1143, 453], WL/DD Ratio: 0.18
+
+Results of Rxh7+ v1.3.0 vs Rxh7+ v1.2.4 (30+0.5, NULL, NULL, openings.pgn):
+Elo: 104.25 +/- 24.26, nElo: 186.62 +/- 40.84
+LOS: 100.00 %, DrawRatio: 43.88 %, PairsRatio: 10.14
+Games: 278, Wins: 96, Losses: 15, Draws: 167, Points: 179.5 (64.57 %)
+Ptnml(0-2): [0, 7, 61, 54, 17], WL/DD Ratio: 0.15
+LLR: 2.95 (100.3%) (-2.94, 2.94) [0.00, 10.00]
+SPRT ([0.00, 10.00]) completed - H1 was accepted
