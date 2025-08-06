@@ -11,3 +11,17 @@ Games: 278, Wins: 96, Losses: 15, Draws: 167, Points: 179.5 (64.57 %)
 Ptnml(0-2): [0, 7, 61, 54, 17], WL/DD Ratio: 0.15
 LLR: 2.95 (100.3%) (-2.94, 2.94) [0.00, 10.00]
 SPRT ([0.00, 10.00]) completed - H1 was accepted
+
+Results of Rxh7+ v1.3.0 vs Stockfish@2450 (30+0.5, NULL - 1t, NULL - 16MB, openings.pgn):
+Elo: 4.93 +/- 7.90, nElo: 6.02 +/- 9.63
+LOS: 88.97 %, DrawRatio: 35.44 %, PairsRatio: 1.12
+Games: 5000, Wins: 1742, Losses: 1671, Draws: 1587, Points: 2535.5 (50.71 %)
+Ptnml(0-2): [303, 457, 886, 574, 280], WL/DD Ratio: 2.19
+LLR: 0.42 (14.3%) (-2.94, 2.94) [0.00, 10.00]
+
+Results of Rxh7+ v1.3.0 vs Stockfish@2500 (30+0.5, NULL - 1t, NULL - 16MB, openings.pgn):
+Elo: -10.88 +/- 16.72, nElo: -13.27 +/- 20.37
+LOS: 10.07 %, DrawRatio: 36.14 %, PairsRatio: 0.87
+Games: 1118, Wins: 372, Losses: 407, Draws: 339, Points: 541.5 (48.43 %)
+Ptnml(0-2): [71, 120, 202, 105, 61], WL/DD Ratio: 2.54
+LLR: -1.69 (-57.4%) (-2.94, 2.94) [0.00, 10.00]

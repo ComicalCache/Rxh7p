@@ -17,8 +17,7 @@ fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings f
 Replace `<ELO>` with an Elo between 1350 and 3500 to gauge Rxh7+'s elo rating aganist stockfish.
 
 ```sh
-fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=Rxh7+ cmd=Rxh7p -engine name=Stockfish cmd=stockfish option.UCI_LimitStrength=true option.UCI_Elo=<ELO>
- -each tc=30+0.5 restart=on
+fastchess -concurrency 8 -rounds 500 -games 2 -maxmoves 120 -recover -openings file=openings.pgn format=pgn plies=30 order=random -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 -engine name=Rxh7+ cmd=Rxh7p -engine name=Stockfish cmd=stockfish option.UCI_LimitStrength=true option.UCI_Elo=<ELO> -each tc=30+0.5 restart=on
 ```
 
 # Bibliography
