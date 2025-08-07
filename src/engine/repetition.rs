@@ -8,15 +8,18 @@ impl Engine {
         // Save to unwrap since at least the start pos exists.
         let target_hash = self.position_stack.last().unwrap().0;
 
-        self.position_stack
-            .iter()
-            // Start at the back.
-            .rev()
-            // Iterate until the first irreversible move.
-            .take_while(|entry| !entry.1)
-            // Filter out position that don't match the target.
-            .filter(|entry| entry.0 == target_hash)
-            .count()
+        let mut count = 0;
+        for pos in self.position_stack.iter().rev() {
+            count += (pos.0 == target_hash) as usize;
+
+            // Iterate until the first irreversible move. Only check after possible increment to
+            // find repetitions on the irreversible move.
+            if pos.1 {
+                break;
+            }
+        }
+
+        count
     }
 
     /// Checks if a move is irreversible.
