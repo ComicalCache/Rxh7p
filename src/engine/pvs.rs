@@ -181,13 +181,14 @@ impl Engine {
         }
 
         // Checkmate or stalemate.
-        if board.status() != BoardStatus::Ongoing {
-            return Some(evaluator::evaluate(&board));
+        let board_status = board.status();
+        if board_status != BoardStatus::Ongoing {
+            return Some(evaluator::evaluate(&board, Some(board_status)));
         }
 
         // Quiescence search to avoid event horizon at the end of search.
         if depth == 0 {
-            return Some(Engine::quiescence(board, alpha, beta));
+            return Some(Engine::quiescence(board, alpha, beta, None));
         }
 
         let tt_entry = self.tt.get(board.get_hash());
@@ -251,7 +252,8 @@ impl Engine {
             let margin =
                 piece_value(&board, Piece::Pawn) + piece_value(&board, Piece::Pawn) * depth as i64;
 
-            evaluator::evaluate(&board) + margin
+            // Can't be game over since no move was made and checked before.
+            evaluator::evaluate(&board, None) + margin
         } else {
             // Could be anything but this guarantees alpha < alpha to always be false.
             alpha
@@ -288,7 +290,7 @@ impl Engine {
             let mut new_eval;
             if first_search {
                 // Evaluate new position fully if first search. LMR will always be zero here thus
-                // it's ommitted. If PVS returns None, search was cancelled, return up the chain.
+                // it's ommitted.
                 new_eval = self.pvs::<PV>(new_board, None, -beta, -alpha, depth - 1);
                 first_search = false;
             } else {
@@ -357,8 +359,14 @@ impl Engine {
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
-        let mut max_eval = evaluator::evaluate(&board);
+    fn quiescence(
+        board: Board,
+        mut alpha: i64,
+        beta: i64,
+        board_status: Option<BoardStatus>,
+    ) -> i64 {
+        // First call can't be game over since no move was made and checked before.
+        let mut max_eval = evaluator::evaluate(&board, board_status);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
@@ -373,8 +381,13 @@ impl Engine {
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
-            // Evaluate new position.
-            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
+            // Evaluate new position. Every move can lead to game over so it must be checked.
+            let new_eval = -Engine::quiescence(
+                board.make_move_new(capture),
+                -beta,
+                -alpha,
+                Some(board.status()),
+            );
 
             max_eval = max(new_eval, max_eval);
             alpha = max(new_eval, alpha);
