@@ -289,31 +289,29 @@ impl Engine {
             if first_search {
                 // Evaluate new position fully if first search. LMR will always be zero here thus
                 // it's ommitted. If PVS returns None, search was cancelled, return up the chain.
-                new_eval = -self.pvs::<PV>(new_board, None, -beta, -alpha, depth - 1)?;
+                new_eval = self.pvs::<PV>(new_board, None, -beta, -alpha, depth - 1);
                 first_search = false;
             } else {
                 // Calculate new reduction.
                 let lmr = Engine::lmr(depth, idx, capture, promotion, in_check).min(depth - 1);
 
                 // Perform null-window search on following searches with late move reduction.
-                // Invert result due to symmetry. If PVS returns None, search was cancelled, return
-                // up the chain.
-                new_eval =
-                    -self.pvs::<false>(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr)?;
+                new_eval = self.pvs::<false>(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
 
-                // If the null-window search failed high.
-                // Prune non-PV moves. In rare cases this condition is true for PV moves, but
-                // the chance is negligible.
-                if new_eval > alpha && new_eval < beta {
+                // If the null-window search failed high, prune non-PV moves. In rare cases this
+                // condition is true for PV moves, but the chance is negligible. Invert result due
+                // to symmetry.
+                if let Some(eval) = new_eval
+                    && -eval > alpha
+                    && -eval < beta
+                {
                     #[cfg(feature = "logging")]
                     {
                         self.search_log.research_pvs += 1;
                     }
 
-                    // Repeat the search with a full search without late move reduction. Invert
-                    // result due to symmetry. If PVS returns None, search was cancelled, return up
-                    // the chain.
-                    new_eval = -self.pvs::<true>(new_board, None, -beta, -alpha, depth - 1)?;
+                    // Repeat the search with a full search without late move reduction.
+                    new_eval = self.pvs::<true>(new_board, None, -beta, -alpha, depth - 1);
                 }
             }
 
@@ -321,16 +319,24 @@ impl Engine {
             self.position_stack.pop();
             self.search.ply -= 1;
 
-            if new_eval > max_eval {
-                max_eval = new_eval;
-                best_move = Some(*mv);
-            }
+            if let Some(new_eval) = new_eval {
+                // Invert result due to symmetry.
+                let new_eval = -new_eval;
 
-            alpha = max(new_eval, alpha);
+                if new_eval > max_eval {
+                    max_eval = new_eval;
+                    best_move = Some(*mv);
+                }
 
-            // Cut-off, move was too good, opponent would not allow it.
-            if new_eval >= beta {
-                break;
+                alpha = max(new_eval, alpha);
+
+                // Cut-off, move was too good, opponent would not allow it.
+                if new_eval >= beta {
+                    break;
+                }
+            } else {
+                // If PVS returns None, search was cancelled, return up the chain.
+                return None;
             }
         }
 
