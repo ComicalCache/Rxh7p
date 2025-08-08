@@ -66,13 +66,15 @@ pub fn piece_square_value(board: &Board, color: Color, piece: Piece, square: Squ
 }
 
 /// Evaluates the current board.
-pub fn evaluate(board: &Board) -> i64 {
+pub fn evaluate(board: &Board, status: Option<BoardStatus>) -> i64 {
     // Stalemate is neutral, being in checkmate is VERY bad since it means the player checking
     // is in checkmate.
-    match board.status() {
-        BoardStatus::Stalemate => return 0,
-        BoardStatus::Checkmate => return MATE_VALUE,
-        BoardStatus::Ongoing => {}
+    if let Some(status) = status {
+        match status {
+            BoardStatus::Stalemate => return 0,
+            BoardStatus::Checkmate => return MATE_VALUE,
+            BoardStatus::Ongoing => {}
+        }
     }
 
     let pieces = [

@@ -12,7 +12,7 @@ use crate::{
     engine::Engine,
     evaluator::{self, piece_value},
     orderer::{self, masks},
-    tt::TtEntryFlag,
+    tt::{TtEntry, TtEntryFlag},
     uci::{UciSearchStop, sender},
 };
 
@@ -26,9 +26,6 @@ impl Engine {
             Some(self.search.moves.clone())
         };
 
-        // Always set start time even if no go movetime command was sent.
-        self.search.start_time = SystemTime::now();
-
         // Search volatility threshold.
         let volatility_threshold = piece_value(&self.board, Piece::Pawn) / 2;
 
@@ -37,6 +34,9 @@ impl Engine {
             .tt
             .get(self.board.get_hash())
             .map_or(ChessMove::default(), |entry| entry.mv);
+
+        // Always set start time even if no go movetime command was sent.
+        self.search.start_time = SystemTime::now();
 
         let mut eval = 0;
         let mut pv_depth = 0;
@@ -180,17 +180,16 @@ impl Engine {
             return Some(0);
         }
 
+        // Checkmate or stalemate.
+        let board_status = board.status();
+        if board_status != BoardStatus::Ongoing {
+            return Some(evaluator::evaluate(&board, Some(board_status)));
+        }
+
         // Quiescence search to avoid event horizon at the end of search.
         if depth == 0 {
-            return Some(Engine::quiescence(board, alpha, beta));
+            return Some(Engine::quiescence(board, alpha, beta, None));
         }
-
-        // Checkmate or stalemate.
-        if board.status() != BoardStatus::Ongoing {
-            return Some(evaluator::evaluate(&board));
-        }
-
-        let prev_alpha = alpha;
 
         let tt_entry = self.tt.get(board.get_hash());
         // Skip lookup if position occured twice already to search a threefold repetition position.
@@ -208,8 +207,15 @@ impl Engine {
             }
         }
 
-        // Internal iterative deepening if no good move exists yet.
-        if PV && depth > 5 && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact) {
+        let in_check = *board.checkers() != EMPTY;
+
+        // Internal iterative deepening if no good move exists yet and is not in check.
+        if PV
+            && depth >= 5
+            && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact)
+            && self.search.ply != 0
+            && !in_check
+        {
             #[cfg(feature = "logging")]
             {
                 self.search_log.iterative_deepening += 1;
@@ -224,25 +230,18 @@ impl Engine {
             // Checks that not in check.
             && let Some(new_board) = board.null_move()
         {
-            // Reduce depth by three in null move search and beta null window.
-            if let Some(eval) =
-                self.pvs::<false>(new_board, searchmoves, -beta, -beta + 1, depth - 3)
-            {
-                // Invert result due to symmetry.
-                let eval = -eval;
+            // Reduce depth by three in null move search and beta null window. Invert result due to
+            // symmetry. If PVS returns None, search was cancelled, return up the chain.
+            let eval = -self.pvs::<false>(new_board, searchmoves, -beta, -beta + 1, depth - 3)?;
 
-                // Since null move failed high, best move will likely also fail high, prune.
-                if eval >= beta {
-                    #[cfg(feature = "logging")]
-                    {
-                        self.search_log.null_move_pruning += 1;
-                    }
-
-                    return Some(eval);
+            // Since null move failed high, best move will likely also fail high, prune.
+            if eval >= beta {
+                #[cfg(feature = "logging")]
+                {
+                    self.search_log.null_move_pruning += 1;
                 }
-            } else {
-                // If PVS returns None, search was cancelled, return up the chain.
-                return None;
+
+                return Some(eval);
             }
         }
 
@@ -260,12 +259,14 @@ impl Engine {
             let margin =
                 piece_value(&board, Piece::Pawn) + piece_value(&board, Piece::Pawn) * depth as i64;
 
-            evaluator::evaluate(&board) + margin
+            // Can't be game over since no move was made and checked before.
+            evaluator::evaluate(&board, None) + margin
         } else {
             // Could be anything but this guarantees alpha < alpha to always be false.
             alpha
         };
 
+        let prev_alpha = alpha;
         let mut first_search = true;
         let mut max_eval = -i64::MAX;
         let mut best_move = None;
@@ -274,7 +275,6 @@ impl Engine {
 
             let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
             let promotion = mv.get_promotion().is_some();
-            let in_check = *board.checkers() != EMPTY;
             let check = in_check || *new_board.checkers() != EMPTY;
 
             // Futility pruning on quiet positions (not capture, check or promotion).
@@ -306,10 +306,10 @@ impl Engine {
                 // Perform null-window search on following searches with late move reduction.
                 new_eval = self.pvs::<false>(new_board, None, -alpha - 1, -alpha, depth - 1 - lmr);
 
-                // If the null-window search failed high.
+                // If the null-window search failed high, prune non-PV moves. In rare cases this
+                // condition is true for PV moves, but the chance is negligible. Invert result due
+                // to symmetry.
                 if let Some(eval) = new_eval
-                    // Prune non-PV moves. In rare cases this condition is true for PV moves, but
-                    // the chance is negligible. Inverse result due to symmetry.
                     && -eval > alpha
                     && -eval < beta
                 {
@@ -327,9 +327,9 @@ impl Engine {
             self.position_stack.pop();
             self.search.ply -= 1;
 
-            if let Some(mut new_eval) = new_eval {
+            if let Some(new_eval) = new_eval {
                 // Invert result due to symmetry.
-                new_eval = -new_eval;
+                let new_eval = -new_eval;
 
                 if new_eval > max_eval {
                     max_eval = new_eval;
@@ -349,15 +349,30 @@ impl Engine {
         }
 
         if let Some(mv) = best_move {
-            self.store_pvs_result(board, prev_alpha, beta, depth, mv, max_eval);
+            let flag = match (max_eval <= prev_alpha, max_eval >= beta) {
+                (true, _) => TtEntryFlag::Alpha,
+                (_, true) => TtEntryFlag::Beta,
+                _ => TtEntryFlag::Exact,
+            };
+
+            // Safe to unwrap, depth will never exceed 2^16...
+            let depth = u16::try_from(depth).unwrap();
+            let tt_entry = TtEntry::new(flag, depth, mv, board.side_to_move(), max_eval);
+            self.tt.set(board.get_hash(), tt_entry);
         }
 
         Some(max_eval)
     }
 
     /// Performs a quiescence search on a given board.
-    fn quiescence(board: Board, mut alpha: i64, beta: i64) -> i64 {
-        let mut max_eval = evaluator::evaluate(&board);
+    fn quiescence(
+        board: Board,
+        mut alpha: i64,
+        beta: i64,
+        board_status: Option<BoardStatus>,
+    ) -> i64 {
+        // First call can't be game over since no move was made and checked before.
+        let mut max_eval = evaluator::evaluate(&board, board_status);
 
         // Cut-off, move was too good, opponent would not allow it.
         if max_eval >= beta {
@@ -372,8 +387,13 @@ impl Engine {
         alpha = max(max_eval, alpha);
 
         for capture in orderer::quiescence(&board) {
-            // Evaluate new position.
-            let new_eval = -Engine::quiescence(board.make_move_new(capture), -beta, -alpha);
+            // Evaluate new position. Every move can lead to game over so it must be checked.
+            let new_eval = -Engine::quiescence(
+                board.make_move_new(capture),
+                -beta,
+                -alpha,
+                Some(board.status()),
+            );
 
             max_eval = max(new_eval, max_eval);
             alpha = max(new_eval, alpha);

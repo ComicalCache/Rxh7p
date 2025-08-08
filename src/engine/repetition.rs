@@ -10,7 +10,7 @@ impl Engine {
 
         let mut count = 0;
         for pos in self.position_stack.iter().rev() {
-            count += (pos.0 == target_hash) as usize;
+            count += usize::from(pos.0 == target_hash);
 
             // Iterate until the first irreversible move. Only check after possible increment to
             // find repetitions on the irreversible move.

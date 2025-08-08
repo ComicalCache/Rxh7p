@@ -7,16 +7,12 @@ use std::{
 
 use std::sync::mpsc::Receiver;
 
-use chess::{Board, ChessMove};
+use chess::Board;
 
 #[cfg(feature = "logging")]
 use crate::engine::search::SearchLog;
 
-use crate::{
-    engine::search::Search,
-    tt::{TT, TtEntry, TtEntryFlag},
-    uci::UciSearchStop,
-};
+use crate::{engine::search::Search, tt::TT, uci::UciSearchStop};
 
 /// The chess engine itself, it performs the search and data keeping.
 pub struct Engine {
@@ -96,27 +92,5 @@ impl Engine {
         if let Err(err) = self.log_file.flush() {
             panic!("Failed to flush log file: {err}");
         }
-    }
-
-    /// Stores the result of the PVS in the TT.
-    pub(super) fn store_pvs_result(
-        &mut self,
-        board: Board,
-        alpha: i64,
-        beta: i64,
-        depth: usize,
-        mv: ChessMove,
-        eval: i64,
-    ) {
-        let flag = match (eval <= alpha, eval >= beta) {
-            (true, _) => TtEntryFlag::Alpha,
-            (_, true) => TtEntryFlag::Beta,
-            _ => TtEntryFlag::Exact,
-        };
-
-        // Safe to unwrap, depth will never exceed 2^16...
-        let depth = u16::try_from(depth).unwrap();
-        let tt_entry = TtEntry::new(flag, depth, mv, board.side_to_move(), eval);
-        self.tt.set(board.get_hash(), tt_entry);
     }
 }
