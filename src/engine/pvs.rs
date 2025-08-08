@@ -210,7 +210,12 @@ impl Engine {
         let in_check = *board.checkers() != EMPTY;
 
         // Internal iterative deepening if no good move exists yet and is not in check.
-        if PV && depth >= 5 && tt_entry.is_none() && self.search.ply != 0 && !in_check {
+        if PV
+            && depth >= 5
+            && (tt_entry.is_none() || tt_entry.unwrap().flag != TtEntryFlag::Exact)
+            && self.search.ply != 0
+            && !in_check
+        {
             #[cfg(feature = "logging")]
             {
                 self.search_log.iterative_deepening += 1;
