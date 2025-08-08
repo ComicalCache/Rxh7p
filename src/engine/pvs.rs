@@ -207,8 +207,10 @@ impl Engine {
             }
         }
 
-        // Internal iterative deepening if no move exists yet.
-        if PV && depth > 5 && tt_entry.is_none() {
+        let in_check = *board.checkers() != EMPTY;
+
+        // Internal iterative deepening if no good move exists yet and is not in check.
+        if PV && depth >= 5 && tt_entry.is_none() && self.search.ply != 0 && !in_check {
             #[cfg(feature = "logging")]
             {
                 self.search_log.iterative_deepening += 1;
@@ -268,7 +270,6 @@ impl Engine {
 
             let capture = capture_mask & BitBoard::from_square(mv.get_dest()) != EMPTY;
             let promotion = mv.get_promotion().is_some();
-            let in_check = *board.checkers() != EMPTY;
             let check = in_check || *new_board.checkers() != EMPTY;
 
             // Futility pruning on quiet positions (not capture, check or promotion).
