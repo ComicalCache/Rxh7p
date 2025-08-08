@@ -37,8 +37,7 @@ fn see_capture(board: &Board, capture: ChessMove) -> i64 {
 fn see(board: &Board, square: Square) -> i64 {
     let mut eval = 0;
 
-    let smallest_attack = smallest_attack(board, square);
-    if let Some(smallest_attack) = smallest_attack {
+    if let Some(smallest_attack) = smallest_attack(board, square) {
         let captured_value = evaluator::piece_square_value(
             board,
             // Piece value of opponent.
