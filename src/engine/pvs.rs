@@ -321,9 +321,6 @@ impl Engine {
             self.position_stack.pop();
             self.search.ply -= 1;
 
-            // Invert result due to symmetry.
-            new_eval = -new_eval;
-
             if new_eval > max_eval {
                 max_eval = new_eval;
                 best_move = Some(*mv);
