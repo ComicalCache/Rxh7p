@@ -145,6 +145,9 @@ Pieces of knowledge interesting to anyone reading, myself included.
 
 <details>
 
+- https://github.com/official-stockfish/nnue-pytorch/blob/master/docs/nnue.md
+- https://talkchess.com/viewtopic.php?t=83170
+- https://obrhubr.org/chess-engine
 - https://www.chessprogramming.org/Internal_Iterative_Reductions
 - https://www.chessprogramming.org/Razoring
 - https://www.chessprogramming.org/Sequential_Probability_Ratio_Test
